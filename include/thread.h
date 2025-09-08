@@ -14,6 +14,9 @@
 #define THREAD_H
 
 #include <stdint.h>
+#include "../include/stm32f4xx_hal_gpio.h"
+#include "../include/stm32f4xx_hal_uart.h"
+#include "../include/stm32f4xx_ll_i2c.h"
 
 typedef enum
 {
@@ -23,7 +26,7 @@ typedef enum
     THREAD_SLEEPING,           // Delayed until a wakeup tick
     THREAD_SUSPENDED,          // Explicitly stopped, not scheduled
     THREAD_TERMINATED,         // Finished, awaiting cleanup
-    THREAD_WAITING_FOR_SERVICE // Waiting For Service.
+    THREAD_WAITING_FOR_SERVICE, // Waiting For Service.
     THREAD_HALTED, // Thread stopped due to fault or security ban
 } ThreadState;
 
@@ -67,15 +70,7 @@ typedef struct
     uint32_t R12;
     uint32_t SP;         // Process Stack Pointer
     uint32_t LR;         // Link Register
-    uint32_t stack_base; // Base of allocated stack
 } PROCESSOR_TCB;
-
-typedef struct
-{
-    uint32_t serviceId;
-    void *arg;
-    Thread *caller; // who to wake when done
-} ServiceRequest;
 
 /**
  *  Thread Control Block (TCB) for the scheduler.
@@ -98,7 +93,6 @@ typedef struct
     void *arg;                // Argument to entry function
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
-    ServiceRequest *pendingService;
 } Thread;
 
 // -----------------------------------------------------------------------------

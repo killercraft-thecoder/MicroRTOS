@@ -5,9 +5,6 @@
 #include "core_cm4.h" // or core_cm3.h / core_cm7.h
 #include "cmsis_gcc.h"
 #include "process.h"
-#include "../include/stm32f4xx_hal_gpio.h"
-#include "../include/stm32f4xx_hal_uart.h"
-#include "../include/stm32f4xx_hal_i2c.h"
 #include "mpu.h"
 
 #define MAX_THREADS 8
@@ -51,7 +48,7 @@ static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
     t->context.R12 = 0x12121212;
     t->context.SP = (uint32_t)stackTop;
     t->context.LR = 0xFFFFFFFD;
-    t->context.stack_base = (uint32_t)t->stackBase;
+    t->stack_base = (uint32_t)t->stackBase;
 }
 
 // -----------------------------------------------------------------------------
