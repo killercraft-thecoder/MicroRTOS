@@ -29,7 +29,7 @@ typedef uint32_t tick_t;        // tick count
 // Flags & masks
 typedef uint32_t flag32_t;      // 32-bit flags
 typedef uint64_t flag64_t;      // 64-bit flags
-typedef uint16_t flag16_t;
+typedef uint16_t flag16_t;      // 16-bit flags
 
 // Sizes & counts
 typedef uint32_t size_t;        // object sizes, buffer lengths

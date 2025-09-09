@@ -171,7 +171,7 @@ extern "C" {
 #elif defined(STM32F423xx)
 #include "stm32f423xx.h"
 #else
-#error "Please select first the target STM32F4xx device used (in Codal API2/Related/stm32f4xx.h file)"
+#error "Please select first the target STM32F4xx device used (in include/CMSIS/stm32f4xx.h file)"
 #endif
 
 /**
