@@ -364,7 +364,7 @@ void PendSV_Restore(void)
     // Exception return will restore R0–R3, R12, LR, PC, xPSR from PSP.
 }
 
-__attribute__((always_inline)) static inline void Thread_Sleep(uint32_t ms)
+__attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
 {
     register uint32_t r0 __asm__("r0") = ms;
     __asm volatile(
@@ -373,6 +373,24 @@ __attribute__((always_inline)) static inline void Thread_Sleep(uint32_t ms)
         : [imm] "I"(SVC_THREAD_SLEEP), "r"(r0)
         : "memory");
 }
+
+/**
+ * @brief Public API to get the current system tick count.
+ * @return uint32_t Current tick count.
+ */
+__attribute__((always_inline)) static inline time_t OS_GetTick(void) {
+    uint32_t result;
+    __asm volatile (
+        "svc %1       \n"
+        "mov %0, r0   \n"
+        : "=r" (result)
+        : "I" (SVC_GET_TICK)
+        : "r0"
+    );
+    return result;
+}
+
+
 
 // Get the stacked frame depending on EXC_RETURN in LR
 static inline uint32_t *get_stacked_frame(uint32_t lr)
@@ -406,6 +424,11 @@ __attribute__((naked)) void SVC_Handler(void)
         "mov   r1, lr          \n" // r1 = lr (EXC_RETURN)
         "b     SVC_Handler_C   \n");
 }
+
+static inline uint32_t Kernel_GetTick(void) {
+    return g_kernal->systemTicks; // Read Out that data.
+}
+
 
 extern "C"
 {
@@ -454,6 +477,9 @@ extern "C"
 
         case SVC_I2C_MASTER_TXRX:
             frame[0] = Kernel_I2C_Master_TransmitReceive((I2C_Args*)frame[0]);
+            break;
+        case SVC_GET_TICK:
+            frame[0] = Kernel_GetTick();
             break;
         default:
             break;

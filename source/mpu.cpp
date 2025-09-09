@@ -101,21 +101,17 @@ void MPU_Init(void)
     // -------------------------------
     // Region 0: Kernel memory
     // -------------------------------
-    MPU->RNR  = 0;
-    MPU->RBAR = ((uint32_t)&g_kernel & MPU_RBAR_ADDR_Msk)
-              | MPU_RBAR_VALID_Msk
-              | 0;
+    MPU->RNR = 0;
+    MPU->RBAR = ((uint32_t)&g_kernel & MPU_RBAR_ADDR_Msk) | MPU_RBAR_VALID_Msk | 0;
     MPU->RASR = (0x1U << MPU_RASR_AP_Pos) | // Priv RW, Unpriv NA
-                (0U    << MPU_RASR_XN_Pos) | // Execution allowed
+                (0U << MPU_RASR_XN_Pos) |   // Execution allowed
                 (MPU_REGION_SIZE_32KB << MPU_RASR_SIZE_Pos) |
-                (1U    << MPU_RASR_ENABLE_Pos);
+                (1U << MPU_RASR_ENABLE_Pos);
 
     // -------------------------------
     // Enable MemManage, BusFault, UsageFault
     // -------------------------------
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk
-               |  SCB_SHCSR_BUSFAULTENA_Msk
-               |  SCB_SHCSR_USGFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_USGFAULTENA_Msk;
 
     // Enable MPU with default privileged map
     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
@@ -124,32 +120,56 @@ void MPU_Init(void)
     __ISB();
 }
 
-
-
-
-
-// Memory Management Fault
-void MemManage_Handler(void)
+extern "C"
 {
-    Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
+    // Memory Management Fault
+    void MemManage_Handler(void)
+    {
+        Thread *t = g_kernel.currentThread;
+        t->state = ThreadState::THREAD_HALTED;
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 
-// Bus Fault
-void BusFault_Handler(void)
-{
-    Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
+    // Bus Fault
+    void BusFault_Handler(void)
+    {
+        Thread *t = g_kernel.currentThread;
+        t->state = ThreadState::THREAD_HALTED;
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 
-// Usage Fault
-void UsageFault_Handler(void)
-{
-    Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    // Usage Fault
+    void UsageFault_Handler(void)
+    {
+        Thread *t = g_kernel.currentThread;
+        t->state = ThreadState::THREAD_HALTED;
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
+
+    // Hard Fault
+    void HardFault_Handler(void)
+    {
+        __asm volatile(
+            "TST lr, #4            \n" // Test EXC_RETURN bit 2
+            "ITE EQ                \n"
+            "MRSEQ r0, MSP         \n" // Main Stack Pointer
+            "MRSNE r0, PSP         \n" // Process Stack Pointer
+            "B hardfault_c_handler \n");
+    }
+
+    void hardfault_c_handler(uint32_t * /*stacked_regs*/)
+    {
+        if (g_kernal->currentThread)
+        {
+            // Mark the current thread as halted
+            g_kernal->currentThread.state = THREAD_HALTED;
+
+            // Trigger a context switch to the next ready thread
+            Kernal_Yield();
+        } else {
+            NVIC_SystemReset();
+        }
+    }
 }
 
 void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)

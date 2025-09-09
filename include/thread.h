@@ -16,18 +16,38 @@
 #include <stdint.h>
 #include "../include/stm32f4xx_hal_gpio.h"
 #include "../include/stm32f4xx_hal_uart.h"
-#include "../include/stm32f4xx_ll_i2c.h"
+#include "../include/stm32f4xx_ll_hal.h"
+
+// Time & durations
+typedef uint32_t time_t;        // absolute time in ms since boot (1 tick = 1 ms)
+typedef int32_t  duration_t;    // signed interval in ms (end - start)
+
+// Scheduling & priorities
+typedef uint8_t  priority_t;    // thread priority level
+typedef uint32_t tick_t;        // tick count
+
+// Flags & masks
+typedef uint32_t flag32_t;      // 32-bit flags
+typedef uint64_t flag64_t;      // 64-bit flags
+typedef uint16_t flag16_t;
+
+// Sizes & counts
+typedef uint32_t size_t;        // object sizes, buffer lengths
+typedef uint32_t count_t;       // generic counter type
+
+// Error/status codes
+typedef int32_t  status_t;      // return codes from OS functions (in the future)
 
 typedef enum
 {
-    THREAD_READY,              // In ready queue, waiting to run
-    THREAD_RUNNING,            // Currently executing
-    THREAD_BLOCKED,            // Waiting on event/semaphore/mutex
-    THREAD_SLEEPING,           // Delayed until a wakeup tick
-    THREAD_SUSPENDED,          // Explicitly stopped, not scheduled
-    THREAD_TERMINATED,         // Finished, awaiting cleanup
+    THREAD_READY,               // In ready queue, waiting to run
+    THREAD_RUNNING,             // Currently executing
+    THREAD_BLOCKED,             // Waiting on event/semaphore/mutex
+    THREAD_SLEEPING,            // Delayed until a wakeup tick
+    THREAD_SUSPENDED,           // Explicitly stopped, not scheduled
+    THREAD_TERMINATED,          // Finished, awaiting cleanup
     THREAD_WAITING_FOR_SERVICE, // Waiting For Service.
-    THREAD_HALTED, // Thread stopped due to fault or security ban
+    THREAD_HALTED,              // Thread stopped due to fault or security ban
 } ThreadState;
 
 enum
@@ -44,7 +64,10 @@ enum
     SVC_GPIO_READ = 11,
     SVC_UART_TRANSMIT = 20,
     SVC_UART_RECEIVE = 21,
-    SVC_I2C_MASTER_TXRX = 30
+    SVC_I2C_MASTER_TXRX = 30,
+
+    // Time Services
+    SVC_GET_TICK = 40,
 
 };
 
@@ -68,8 +91,8 @@ typedef struct
     uint32_t R10;
     uint32_t R11;
     uint32_t R12;
-    uint32_t SP;         // Process Stack Pointer
-    uint32_t LR;         // Link Register
+    uint32_t SP; // Process Stack Pointer
+    uint32_t LR; // Link Register
 } PROCESSOR_TCB;
 
 /**
@@ -94,6 +117,9 @@ typedef struct
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
 } Thread;
+
+typedef Thread thread_t;
+
 
 // -----------------------------------------------------------------------------
 // Scheduler API
@@ -193,7 +219,7 @@ static inline void Restore_Context(Thread *t);
  *
  * @param ms Number of milliseconds to sleep.
  */
-void Thread_Sleep(uint32_t ms);
+void Thread_Sleep(time_t ms);
 
 /**
  * @brief Transmit data over a UART from an unprivileged thread.
@@ -272,5 +298,29 @@ static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi
                                                            uint8_t *pTxData, uint16_t TxSize,
                                                            uint8_t *pRxData, uint16_t RxSize,
                                                            uint32_t Timeout);
+
+/**
+ * @brief Get the current system tick count.
+ *
+ * This function returns the current kernel tick counter value.
+ * The tick counter is incremented by the system timer interrupt
+ * (SysTick) every millisecond.
+ *
+ * @note This function can be called from any thread. In unprivileged
+ *       mode, it will invoke a system call (SVC) to retrieve the value
+ *       from the kernel.
+ *
+ * @return uint32_t The current tick count in kernel ticks.
+ *                  Units depend on the system tick frequency.
+ *
+ * @see Thread_Sleep
+ * @see Kernel_GetTick
+ */
+time_t OS_GetTick(void);
+
+// How Many Milliseconds since boot
+static inline time_t OS_runtimeMS(void) {
+    return OS_GetTick();
+}
 
 #endif // THREAD_H

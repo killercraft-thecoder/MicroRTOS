@@ -22,10 +22,11 @@
 #define OS_MPU_REGION_INDEX 0u
 #define FIRST_PROCESS_REGION 1u
 
-
-
 // Minimum MPU alignment is 32 bytes; align the whole OS data block.
 static __attribute__((aligned(32))) KernelData g_kernel;
+#ifdef ENABLE_GLOBAL_DATA
+OS_GlobalShared g_shared = {0}; // Zero-initialized
+#endif
 
 // Cached hardware MPU region count and one-time OS MPU config flag
 static uint32_t g_mpuRegionCount = 0;
@@ -132,14 +133,16 @@ static inline void DisableRegion(uint8_t regionNumber)
 // API implementation
 // -----------------------------------------------------------------------------
 
-static inline void Add_Process(Process *p) {
+static inline void Add_Process(Process *p)
+{
     register Process *r0 __asm__("r0") = p;
-    __asm volatile ("svc %[imm]" :: "r"(r0), [imm] "I" (SVC_ADD_PROCESS) : "memory");
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_ADD_PROCESS) : "memory");
 }
 
-static inline void Remove_Process(Process *p) {
+static inline void Remove_Process(Process *p)
+{
     register Process *r0 __asm__("r0") = p;
-    __asm volatile ("svc %[imm]" :: "r"(r0), [imm] "I" (SVC_REMOVE_PROCESS) : "memory");
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_REMOVE_PROCESS) : "memory");
 }
 
 void Kernal_Add_Process(Process *process)

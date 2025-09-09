@@ -19,13 +19,13 @@ typedef struct
  * @brief Maximum number of processes the kernel can track at once.
  * @note Adjust based on available RAM and application needs.
  */
-#define MAX_PROCESSES  8
+#define MAX_PROCESSES 8
 
 /**
  * @brief Maximum number of threads the kernel can track at once.
  * @note Includes all threads across all processes.
  */
-#define MAX_THREADS    8
+#define MAX_THREADS 8
 
 // Forward declaration to avoid circular include
 struct Thread;
@@ -55,11 +55,38 @@ typedef struct
     uint8_t threadCount;             // Number of active threads
     uint8_t currentIndex;            // Index of currently running thread
     Thread *currentThread;           // Pointer to currently running thread
-   
+
 } KernelData;
 
 // Declare the global kernel data (no storage here)
 extern KernelData g_kernel;
+
+#ifdef ENABLE_GLOBAL_DATA
+typedef struct
+{
+    // 64-bit general-purpose flags — bit meanings are up to user code
+    volatile uint64_t flags;
+
+    // 64-bit timestamp or counter (can be OS_GetTick, uptime, etc.)
+    volatile time_t timestamp;
+
+    // 64-bit general-purpose data slots
+    volatile uint64_t data64[4]; // 4 slots for arbitrary 64-bit values
+
+    // 32-bit general-purpose data slots
+    volatile uint32_t data32[8]; // 8 slots for arbitrary 32-bit values
+
+    // 16-bit general-purpose data slots
+    volatile uint16_t data16[8]; // 8 slots for arbitrary 16-bit values
+
+    // 8-bit general-purpose data slots
+    volatile uint8_t data8[16]; // 16 slots for arbitrary 8-bit values
+
+} OS_GlobalShared;
+
+// Declare the global instance
+extern OS_GlobalShared g_shared;
+#endif
 
 void Add_Process(Process process);
 void Remove_Process(Process process);
