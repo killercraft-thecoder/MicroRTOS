@@ -200,9 +200,12 @@ static void Init_SysTick(void)
     NVIC_SetPriority(SVCall_IRQn, lowest - 2U);
 }
 
-void SysTick_Handler(void)
+extern "C"
 {
-    Scheduler_Tick(); // your 1 ms heartbeat
+    void SysTick_Handler(void)
+    {
+        Scheduler_Tick(); // 1ms tick
+    }
 }
 
 // Start the scheduler: set current thread and pend PendSV to start via handler

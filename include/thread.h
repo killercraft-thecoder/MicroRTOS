@@ -68,7 +68,7 @@ typedef uint32_t count_t;       // generic counter type
 // Error/status codes
 typedef int32_t  status_t;      // return codes from OS functions (in the future)
 
-typedef enum
+typedef enum : uint8_t
 {
     THREAD_READY,               // In ready queue, waiting to run
     THREAD_RUNNING,             // Currently executing
@@ -105,23 +105,23 @@ enum
 /**
  *  Full CPU context for an ARM Cortex-M core.
  *  This is saved/restored during context switches.
- *  Includes all general-purpose registers, SP, LR, and stack base.
+ *  Includes all general-purpose registers, SP and LR
  */
 typedef struct
 {
-    uint32_t R0;
-    uint32_t R1;
-    uint32_t R2;
-    uint32_t R3;
-    uint32_t R4;
-    uint32_t R5;
-    uint32_t R6;
-    uint32_t R7;
-    uint32_t R8;
-    uint32_t R9;
-    uint32_t R10;
-    uint32_t R11;
-    uint32_t R12;
+    uint32_t R0; // R0
+    uint32_t R1; // R1
+    uint32_t R2; // R2 
+    uint32_t R3; // R3
+    uint32_t R4; // R4
+    uint32_t R5; // R5
+    uint32_t R6; // R6
+    uint32_t R7; // R7
+    uint32_t R8; // R8
+    uint32_t R9; // R9
+    uint32_t R10; // R10
+    uint32_t R11; // R11
+    uint32_t R12; // R12
     uint32_t SP; // Process Stack Pointer
     uint32_t LR; // Link Register
 } PROCESSOR_TCB;
