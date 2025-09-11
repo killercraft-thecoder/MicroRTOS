@@ -30,11 +30,9 @@ void Start_Scheduler(void); // your kernel entry
 void Yield(void);           // SVC-backed
 void Thread_Sleep(uint32_t ms); // SVC-backed
 
-// Your Create_Thread signature
 void Create_Thread(Thread *t, void (*entry)(void*), void *arg,
                    uint32_t *stack, uint32_t stackBytes, uint32_t priority);
 
-// Optional: delete current thread (if you have it)
 void Thread_Exit(void);
 
 #ifdef __cplusplus

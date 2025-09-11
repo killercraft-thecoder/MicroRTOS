@@ -114,20 +114,24 @@ static inline void Restore_Context(Thread *t)
 // Init the Skeduler , Then Start It.
 void Init_Scheduler(void)
 {
-    g_kernel.threadCount = 0;       // Reset thread table
-    g_kernel.currentIndex = 0;      // Reset scheduler index
-    g_kernel.currentThread = NULL;  // No thread is running yet
+    g_kernel.threadCount = 0;      // Reset thread table
+    g_kernel.currentIndex = 0;     // Reset scheduler index
+    g_kernel.currentThread = NULL; // No thread is running yet
 
-    MPU_Init();                     // Configure MPU regions (privileged/unprivileged memory)
-    MPU_Enable();                   // Turn on MPU + fault generation
+    MPU_Init();   // Configure MPU regions (privileged/unprivileged memory)
+    MPU_Enable(); // Turn on MPU + fault generation
 
-    Start_Scheduler();              // Enter the kernel's main scheduling loop
+    Start_Scheduler(); // Enter the kernel's main scheduling loop
 }
-
 
 static inline void Yield(void)
 {
     __asm volatile("svc %[imm]" ::[imm] "I"(SVC_YIELD) : "memory");
+}
+
+static inline void Thread_Exit(void)
+{
+    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_EXIT) : "memory");
 }
 
 static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
@@ -185,7 +189,8 @@ static void Init_SysTick(void)
     {
         // Reload value too large for SysTick
         while (1)
-        { /* error */
+        {              /* error */
+            __BKPT(10) // Error Code 10 (Unable to boot.)
         }
     }
 
@@ -226,6 +231,13 @@ void Start_Scheduler(void)
 
 void Kernal_Yield(void)
 {
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+void Kernal_Thread_Exit(void)
+{
+    Thread *t = g_kernal.currentThread;
+    t->state = THREAD_TERMINATED;
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
@@ -354,7 +366,7 @@ void PendSV_Save(void)
 void PendSV_Restore(void)
 {
     Thread *next = pick_next_thread();
-    if (!next)
+    if (!next || next == NULL)
         return;
 
     g_kernel.currentThread = next;
@@ -378,19 +390,17 @@ __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
  * @brief Public API to get the current system tick count.
  * @return uint32_t Current tick count.
  */
-__attribute__((always_inline)) static inline time_t OS_GetTick(void) {
+__attribute__((always_inline)) static inline time_t OS_GetTick(void)
+{
     uint32_t result;
-    __asm volatile (
+    __asm volatile(
         "svc %1       \n"
         "mov %0, r0   \n"
-        : "=r" (result)
-        : "I" (SVC_GET_TICK)
-        : "r0"
-    );
+        : "=r"(result)
+        : "I"(SVC_GET_TICK)
+        : "r0");
     return result;
 }
-
-
 
 // Get the stacked frame depending on EXC_RETURN in LR
 static inline uint32_t *get_stacked_frame(uint32_t lr)
@@ -425,10 +435,10 @@ __attribute__((naked)) void SVC_Handler(void)
         "b     SVC_Handler_C   \n");
 }
 
-static inline uint32_t Kernel_GetTick(void) {
+static inline uint32_t Kernel_GetTick(void)
+{
     return g_kernal->systemTicks; // Read Out that data.
 }
-
 
 extern "C"
 {
@@ -461,22 +471,25 @@ extern "C"
         case SVC_REMOVE_PROCESS:
             Kernel_Remove_Process((Process *)frame[0]);
             break;
+        case SVC_EXIT:
+            Kernal_Thread_Exit();
+            break;
         case SVC_GPIO_WRITE:
-            Kernel_GPIO_Write((GPIO_TypeDef*)frame[0], (uint16_t)frame[1], (GPIO_PinState)frame[2]);
+            Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinState)frame[2]);
             break;
         case SVC_GPIO_READ:
-            frame[0] = Kernel_GPIO_Read((GPIO_TypeDef*)frame[0], (uint16_t)frame[1]);
+            frame[0] = Kernel_GPIO_Read((GPIO_TypeDef *)frame[0], (uint16_t)frame[1]);
             break;
 
         case SVC_UART_TRANSMIT:
-            frame[0] = Kernel_UART_Transmit((UART_Args*)frame[0]);
+            frame[0] = Kernel_UART_Transmit((UART_Args *)frame[0]);
             break;
         case SVC_UART_RECEIVE:
-            frame[0] = Kernel_UART_Receive((UART_Args*)frame[0]);
+            frame[0] = Kernel_UART_Receive((UART_Args *)frame[0]);
             break;
 
         case SVC_I2C_MASTER_TXRX:
-            frame[0] = Kernel_I2C_Master_TransmitReceive((I2C_Args*)frame[0]);
+            frame[0] = Kernel_I2C_Master_TransmitReceive((I2C_Args *)frame[0]);
             break;
         case SVC_GET_TICK:
             frame[0] = Kernel_GetTick();
@@ -501,47 +514,53 @@ static void Kernel_Thread_Sleep(uint32_t ms)
 }
 
 // GPIO
-static inline void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state) {
+static inline void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
+{
     register GPIO_TypeDef *r0 __asm__("r0") = port;
     register uint32_t r1 __asm__("r1") = pin;
     register uint32_t r2 __asm__("r2") = state;
-    __asm volatile ("svc %[imm]" :: [imm] "I" (SVC_GPIO_WRITE), "r"(r0), "r"(r1), "r"(r2) : "memory");
+    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_GPIO_WRITE), "r"(r0), "r"(r1), "r"(r2) : "memory");
 }
 
-static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin) {
+static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
+{
     register GPIO_TypeDef *r0 __asm__("r0") = port;
     register uint32_t r1 __asm__("r1") = pin;
     register uint32_t ret __asm__("r0");
-    __asm volatile ("svc %[imm]\n" : "=r"(ret) : [imm] "I" (SVC_GPIO_READ), "r"(r0), "r"(r1) : "memory");
+    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_GPIO_READ), "r"(r0), "r"(r1) : "memory");
     return (GPIO_PinState)ret;
 }
 
 // UART
-typedef struct {
+typedef struct
+{
     UART_HandleTypeDef *huart;
     uint8_t *pData;
     uint16_t Size;
     uint32_t Timeout;
 } UART_Args;
 
-static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout) {
+static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
+{
     UART_Args args = {huart, pData, Size, Timeout};
     register UART_Args *r0 __asm__("r0") = &args;
     register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile ("svc %[imm]\n" : "=r"(ret) : [imm] "I" (SVC_UART_TRANSMIT), "r"(r0) : "memory");
+    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_TRANSMIT), "r"(r0) : "memory");
     return ret;
 }
 
-static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout) {
+static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
+{
     UART_Args args = {huart, pData, Size, Timeout};
     register UART_Args *r0 __asm__("r0") = &args;
     register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile ("svc %[imm]\n" : "=r"(ret) : [imm] "I" (SVC_UART_RECEIVE), "r"(r0) : "memory");
+    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_RECEIVE), "r"(r0) : "memory");
     return ret;
 }
 
 // I2C
-typedef struct {
+typedef struct
+{
     I2C_HandleTypeDef *hi2c;
     uint16_t DevAddress;
     uint8_t *pTxData;
@@ -555,50 +574,68 @@ static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi
                                                            uint16_t DevAddress,
                                                            uint8_t *pTxData, uint16_t TxSize,
                                                            uint8_t *pRxData, uint16_t RxSize,
-                                                           uint32_t Timeout) {
+                                                           uint32_t Timeout)
+{
     I2C_Args args = {hi2c, DevAddress, pTxData, TxSize, pRxData, RxSize, Timeout};
     register I2C_Args *r0 __asm__("r0") = &args;
     register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile ("svc %[imm]\n" : "=r"(ret) : [imm] "I" (SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
+    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
     return ret;
 }
 
-static void Kernel_GPIO_Write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state) {
-    if (port == NULL) return; // invalid port
-    if (state != GPIO_PIN_RESET && state != GPIO_PIN_SET) return; // invalid state
+static void Kernel_GPIO_Write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
+{
+    if (port == NULL)
+        return; // invalid port
+    if (state != GPIO_PIN_RESET && state != GPIO_PIN_SET)
+        return; // invalid state
     // Optional: validate pin mask against MCU's valid pins
     HAL_GPIO_WritePin(port, pin, state);
 }
 
-static GPIO_PinState Kernel_GPIO_Read(GPIO_TypeDef *port, uint16_t pin) {
-    if (port == NULL) return GPIO_PIN_RESET;
+static GPIO_PinState Kernel_GPIO_Read(GPIO_TypeDef *port, uint16_t pin)
+{
+    if (port == NULL)
+        return GPIO_PIN_RESET;
     // Optional: validate pin mask
     return HAL_GPIO_ReadPin(port, pin);
 }
 
-static HAL_StatusTypeDef Kernel_UART_Transmit(UART_Args *a) {
-    if (a == NULL || a->huart == NULL || a->pData == NULL) return HAL_ERROR;
-    if (a->Size == 0) return HAL_OK; // nothing to send
+static HAL_StatusTypeDef Kernel_UART_Transmit(UART_Args *a)
+{
+    if (a == NULL || a->huart == NULL || a->pData == NULL)
+        return HAL_ERROR;
+    if (a->Size == 0)
+        return HAL_OK; // nothing to send
     return HAL_UART_Transmit(a->huart, a->pData, a->Size, a->Timeout);
 }
 
-static HAL_StatusTypeDef Kernel_UART_Receive(UART_Args *a) {
-    if (a == NULL || a->huart == NULL || a->pData == NULL) return HAL_ERROR;
-    if (a->Size == 0) return HAL_OK; // nothing to receive
+static HAL_StatusTypeDef Kernel_UART_Receive(UART_Args *a)
+{
+    if (a == NULL || a->huart == NULL || a->pData == NULL)
+        return HAL_ERROR;
+    if (a->Size == 0)
+        return HAL_OK; // nothing to receive
     return HAL_UART_Receive(a->huart, a->pData, a->Size, a->Timeout);
 }
 
-static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a) {
-    if (a == NULL || a->hi2c == NULL) return HAL_ERROR;
+static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
+{
+    if (a == NULL || a->hi2c == NULL)
+        return HAL_ERROR;
     if ((a->TxSize > 0 && a->pTxData == NULL) ||
-        (a->RxSize > 0 && a->pRxData == NULL)) return HAL_ERROR;
+        (a->RxSize > 0 && a->pRxData == NULL))
+        return HAL_ERROR;
 
     HAL_StatusTypeDef ret = HAL_OK;
-    if (a->TxSize > 0) {
+    if (a->TxSize > 0)
+    {
         ret = HAL_I2C_Master_Transmit(a->hi2c, a->DevAddress, a->pTxData, a->TxSize, a->Timeout);
-        if (ret != HAL_OK) return ret;
+        if (ret != HAL_OK)
+            return ret;
     }
-    if (a->RxSize > 0) {
+    if (a->RxSize > 0)
+    {
         ret = HAL_I2C_Master_Receive(a->hi2c, a->DevAddress, a->pRxData, a->RxSize, a->Timeout);
     }
     return ret;

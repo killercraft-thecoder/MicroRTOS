@@ -2,6 +2,7 @@
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
         "*.asm": "cpuasm",
-        "cstdint": "cpp"
+        "cstdint": "cpp",
+        "stm32f4xx_hal.h": "c"
     }
 }

@@ -26,6 +26,8 @@
 static __attribute__((aligned(32))) KernelData g_kernel;
 #ifdef ENABLE_GLOBAL_DATA
 OS_GlobalShared g_shared = {0}; // Zero-initialized
+#elif defined(ENABLE_SMALL_GLOBAL_DATA)
+OS_GlobalShared g_shared = {0}; // Zero-initialized
 #endif
 
 // Cached hardware MPU region count and one-time OS MPU config flag
@@ -86,40 +88,8 @@ static void ConfigureOSDataMPU_Once(void)
     // MPU_Enable();
 
     g_osMpuConfigured = 1;
-}
 
-// Find a free MPU region for a process (after the OS reserved one)
-static int8_t AllocateProcessRegionIndex(void)
-{
-    if (g_mpuRegionCount == 0)
-    {
-        g_mpuRegionCount = MPU_GetRegionCount();
-    }
-    if (g_mpuRegionCount <= FIRST_PROCESS_REGION)
-    {
-        return -1; // no regions available for processes
-    }
-
-    // Track used region indices via procRegionMap
-    // Build a small bitmap of used regions
-    uint8_t used[16] = {0}; // supports up to 16 regions; increase if needed
-    for (uint8_t i = 0; i < g_kernel.processCount; ++i)
-    {
-        uint8_t rn = g_kernel.procRegionMap[i];
-        if (rn != 0xFF && rn < sizeof(used))
-        {
-            used[rn] = 1;
-        }
-    }
-    // Region 0 is reserved for OS
-    used[OS_MPU_REGION_INDEX] = 1;
-
-    for (uint8_t rn = FIRST_PROCESS_REGION; rn < g_mpuRegionCount && rn < sizeof(used); ++rn)
-    {
-        if (!used[rn])
-            return (int8_t)rn;
-    }
-    return -1;
+    return;
 }
 
 // Disable a specific MPU region index
@@ -165,26 +135,6 @@ void Kernal_Add_Process(Process *process)
 
     // Determine slot and initialize mapping
     uint8_t slot = g_kernel.processCount;
-    g_kernel.procRegionMap[slot] = 0xFF; // not assigned yet
-
-    // Configure per-process MPU region if memory provided
-    if (process->memoryRegion != NULL && process->memorySize > 0)
-    {
-        int8_t regionIndex = AllocateProcessRegionIndex();
-        if (regionIndex >= 0)
-        {
-            MPURegion r{};
-            r.baseAddress = (uint32_t)process->memoryRegion;
-            r.size = process->memorySize;
-            r.attributes = mpu_attr_normal_mem_rw_noexec_priv_full_unpriv_full();
-            MPU_ConfigureRegion((uint8_t)regionIndex, &r);
-            g_kernel.procRegionMap[slot] = (uint8_t)regionIndex;
-        }
-        else
-        {
-            // Out of regions: proceed without MPU isolation for this process memory
-        }
-    }
 
     // Store process in OS table (by value copy)
     g_kernel.processTable[slot] = *process;
@@ -210,24 +160,15 @@ void Kernal_Remove_Process(Process *process)
     {
         if (g_kernel.processTable[i].pid == process->pid)
         {
-            // Disable the MPU region allocated to this process, if any
-            uint8_t rn = g_kernel.procRegionMap[i];
-            if (rn != 0xFF)
-            {
-                DisableRegion(rn);
-            }
 
-            // TODO: Remove process threads from scheduler if you track ownership
+            // TODO: Remove process threads from scheduler if it later track's ownership
 
             // Compact the table and region map
             for (uint8_t j = i; j < (g_kernel.processCount - 1); ++j)
             {
                 g_kernel.processTable[j] = g_kernel.processTable[j + 1];
-                g_kernel.procRegionMap[j] = g_kernel.procRegionMap[j + 1];
             }
             g_kernel.processCount--;
-            // Mark last slot's region map as free
-            g_kernel.procRegionMap[g_kernel.processCount] = 0xFF;
             break;
         }
     }

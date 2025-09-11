@@ -12,6 +12,7 @@ typedef struct
     Thread *mainThread;  // Main thread of the process
     void *memoryRegion;  // Pointer to process memory (if needed)
     uint32_t memorySize; // Size of allocated memory
+
 } Process;
 
 // ---- Kernel limits ----
@@ -45,9 +46,6 @@ typedef struct
     Process processTable[MAX_PROCESSES];
     uint8_t processCount;
 
-    // Map process slot -> assigned MPU region index (0xFF means unassigned)
-    uint8_t procRegionMap[MAX_PROCESSES];
-
     // --------------------
     // Scheduler state
     // --------------------
@@ -61,13 +59,18 @@ typedef struct
 // Declare the global kernel data (no storage here)
 extern KernelData g_kernel;
 
+// Check for invalid combinations
+#if defined(ENABLE_GLOBAL_DATA) && defined(ENABLE_SMALL_GLOBAL_DATA)
+#error "You cannot define both ENABLE_GLOBAL_DATA and ENABLE_SMALL_GLOBAL_DATA"
+#endif
+
 #ifdef ENABLE_GLOBAL_DATA
 typedef struct
 {
     // 64-bit general-purpose flags — bit meanings are up to user code
     volatile uint64_t flags;
 
-    // 64-bit timestamp or counter (can be OS_GetTick, uptime, etc.)
+    // 32-bit timestamp or counter (can be OS_GetTick, downtime,etc)
     volatile time_t timestamp;
 
     // 64-bit general-purpose data slots
@@ -84,6 +87,18 @@ typedef struct
 
 } OS_GlobalShared;
 
+// Declare the global instance
+extern OS_GlobalShared g_shared;
+#elif defined(ENABLE_SMALL_GLOBAL_DATA)
+typedef struct
+{
+    /**  32-bit general-purpose flags — bit meanings are up to user code */
+    volatile uint32_t flags;
+    /** 32-bit counter */
+    volatile uint32_t counter;
+    /** 32-bit general-purpose data slots */
+    volatile uint32_t data32[4];
+} OS_GlobalShared;
 // Declare the global instance
 extern OS_GlobalShared g_shared;
 #endif

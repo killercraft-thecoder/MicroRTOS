@@ -18,6 +18,36 @@
 #include "../include/stm32f4xx_hal_uart.h"
 #include "../include/stm32f4xx_ll_hal.h"
 
+#define __atomic_read(src, dest)   \
+    do {                           \
+        __disable_irq();           \
+        (dest) = (src);            \
+        __enable_irq();            \
+    } while (0)
+
+#define __atomic_write(var, value) \
+    do {                           \
+        __disable_irq();           \
+        (var) = (value);           \
+        __finish_writes();         \
+        __enable_irq();            \
+    } while (0)
+
+// Ensure all memory writes complete before continuing
+#define __finish_writes()   __DSB()
+
+// Ensure memory accesses are observed in order
+#define __flush_memory()    __DMB()
+
+// Flush CPU pipeline (use after changing system control registers)
+#define __flush_pipeline()  __ISB()
+
+// Full sync: flush memory + finish writes + pipeline
+#define __sync_all()        do { __DMB(); __DSB(); __ISB(); } while (0)
+
+
+
+
 // Time & durations
 typedef uint32_t time_t;        // absolute time in ms since boot (1 tick = 1 ms)
 typedef int32_t  duration_t;    // signed interval in ms (end - start)
@@ -46,7 +76,7 @@ typedef enum
     THREAD_SLEEPING,            // Delayed until a wakeup tick
     THREAD_SUSPENDED,           // Explicitly stopped, not scheduled
     THREAD_TERMINATED,          // Finished, awaiting cleanup
-    THREAD_WAITING_FOR_SERVICE, // Waiting For Service.
+    THREAD_WAITING_FOR_SERVICE, // Waiting For Service. (not used)
     THREAD_HALTED,              // Thread stopped due to fault or security ban
 } ThreadState;
 
@@ -58,13 +88,14 @@ enum
     SVC_CREATE_THREAD = 3,
     SVC_ADD_PROCESS = 4,
     SVC_REMOVE_PROCESS = 5,
+    SVC_EXIT = 6,
 
     // I/O services
     SVC_GPIO_WRITE = 10,
     SVC_GPIO_READ = 11,
-    SVC_UART_TRANSMIT = 20,
-    SVC_UART_RECEIVE = 21,
-    SVC_I2C_MASTER_TXRX = 30,
+    SVC_UART_TRANSMIT = 12,
+    SVC_UART_RECEIVE = 13,
+    SVC_I2C_MASTER_TXRX = 14,
 
     // Time Services
     SVC_GET_TICK = 40,
@@ -181,6 +212,11 @@ void Yield(void);
  * arrived, and pends a context switch if the current thread's quantum expired.
  */
 void Scheduler_Tick(void);
+
+/** 
+ * @brief Exit Current Thread
+*/
+void Thread_Exit(void);
 
 /**
  * @brief Select the next thread to run.
