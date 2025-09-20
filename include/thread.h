@@ -66,7 +66,7 @@ typedef uint32_t size_t;        // object sizes, buffer lengths
 typedef uint32_t count_t;       // generic counter type
 
 // Error/status codes
-typedef int32_t  status_t;      // return codes from OS functions (in the future)
+typedef int status_t;      // return codes from threads/OS functions in the future.
 
 typedef enum : uint8_t
 {
@@ -136,7 +136,7 @@ typedef struct
     uint32_t *psp;         // Process Stack Pointer (top of saved frame)
     uint32_t *stackBase;   // Base of stack memory
     uint32_t stackSize;    // Stack size in bytes
-    uint8_t priority;      // Static priority
+    priority_t priority;      // Static priority
     uint8_t control;       // Saved CONTROL value (nPRIV, SPSEL, FPCA)
     uint8_t primask;
     uint8_t basepri;
@@ -147,7 +147,7 @@ typedef struct
     void *arg;                // Argument to entry function
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
-    int exit_code; // Exit Code
+    status_t exit_code; // Exit Code
 } Thread;
 
 typedef Thread thread_t;
@@ -194,8 +194,8 @@ void Start_Scheduler(void);
  * @param stackBytes  Size of the stack in bytes.
  * @param priority    Thread priority (0 = lowest, higher = more urgent).
  */
-void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                   uint32_t *stack, uint32_t stackBytes, uint32_t priority);
+void Create_Thread(thread_t *t, void (*entry)(void *), void* arg,
+                   uint32_t *stack, size_t stackBytes, status_t priority);
 
 /**
  * @brief Voluntarily yield the CPU to another ready thread.
@@ -228,7 +228,7 @@ void Thread_Exit(int code);
  * @return Pointer to the Thread control block of the next thread to run,
  *         or NULL if no threads are ready.
  */
-Thread *Scheduler_GetNextThread(void);
+thread_t *Scheduler_GetNextThread(void);
 
 /**
  * @brief Build the initial stack frame for a new thread.

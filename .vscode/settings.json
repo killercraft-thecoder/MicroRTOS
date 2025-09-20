@@ -1,8 +1,9 @@
 {
-    "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
         "*.asm": "cpuasm",
+        "*.sc": "plaintext",
         "cstdint": "cpp",
-        "stm32f4xx_hal.h": "c"
+        "stm32f4xx_hal.h": "c",
+        "stm32f401xe.h": "c"
     }
 }
