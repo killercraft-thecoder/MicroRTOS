@@ -132,10 +132,8 @@ static inline void Yield(void)
 static inline void Thread_Exit(int code)
 {
     register int r0 __asm("r0") = code;
-    __asm volatile("svc %[imm]" :: "r"(r0), [imm] "I"(SVC_EXIT) : "memory");
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_EXIT) : "memory");
 }
-
-
 
 static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                  uint32_t *stack, uint32_t stackBytes, uint32_t priority)
@@ -243,7 +241,7 @@ void Kernal_Yield(void)
 void Kernel_Thread_Exit(int code)
 {
     Thread *t = g_kernel.currentThread;
-    t->exit_code = code;              // store for debugging
+    t->exit_code = code; // store for debugging
     t->state = THREAD_TERMINATED;
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger context switch
 }
@@ -423,25 +421,6 @@ static inline uint32_t *get_stacked_frame(uint32_t lr)
     }
 }
 
-// Extract SVC immediate from the SVC instruction at (PC - 2)
-static inline uint8_t read_svc_number(uint32_t stacked_pc)
-{
-    uint16_t *svc_instr = (uint16_t *)(stacked_pc - 2U);
-    return (uint8_t)(*svc_instr & 0xFFU);
-}
-
-// Naked SVC handler to preserve LR and access stacked frame
-__attribute__((naked)) void SVC_Handler(void)
-{
-    __asm volatile(
-        "tst lr, #4            \n" // which stack? set Z=1 if MSP
-        "ite eq                \n"
-        "mrseq r0, msp         \n" // r0 = stacked frame
-        "mrsne r0, psp         \n"
-        "mov   r1, lr          \n" // r1 = lr (EXC_RETURN)
-        "b     SVC_Handler_C   \n");
-}
-
 static inline uint32_t Kernel_GetTick(void)
 {
     return g_kernal->systemTicks; // Read Out that data.
@@ -449,6 +428,25 @@ static inline uint32_t Kernel_GetTick(void)
 
 extern "C"
 {
+    // Extract SVC immediate from the SVC instruction at (PC - 2)
+    static inline uint8_t read_svc_number(uint32_t stacked_pc)
+    {
+        uint16_t *svc_instr = (uint16_t *)(stacked_pc - 2U);
+        return (uint8_t)(*svc_instr & 0xFFU);
+    }
+
+    // Naked SVC handler to preserve LR and access stacked frame
+    __attribute__((naked)) void SVC_Handler(void)
+    {
+        __asm volatile(
+            "tst lr, #4            \n" // which stack? set Z=1 if MSP
+            "ite eq                \n"
+            "mrseq r0, msp         \n" // r0 = stacked frame
+            "mrsne r0, psp         \n"
+            "mov   r1, lr          \n" // r1 = lr (EXC_RETURN)
+            "b     SVC_Handler_C   \n");
+    }
+
     // C part: r0 = stacked frame pointer, r1 = EXC_RETURN
     void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
