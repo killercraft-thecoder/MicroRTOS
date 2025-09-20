@@ -13,7 +13,7 @@ void Yield(void);
 void Thread_Sleep(uint32_t ms);
 void Create_Thread(struct Thread *t, void (*entry)(void*), void *arg,
                    uint32_t *stack, uint32_t stackBytes, uint32_t priority);
-void Thread_Exit(void);
+void Thread_Exit(int code);
 
 #ifdef __cplusplus
 }
@@ -56,7 +56,7 @@ static inline osThreadId_t osThreadNew(osThreadFunc_t func, void *argument,
 }
 
 static inline void osThreadExit(void) {
-    Thread_Exit();
+    Thread_Exit(0);
 }
 
 // Yield (optional)

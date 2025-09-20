@@ -1,7 +1,7 @@
 #include "mpu.h"
 #include "core_cm4.h"  // or core_cm3.h / core_cm7.h depending on MCU
 #include "cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
-#include "process.h"
+#include "include/process.h"
 #include "thread.h"
 
 // ---- Internal helpers ----
@@ -159,16 +159,32 @@ extern "C"
 
     void hardfault_c_handler(uint32_t * /*stacked_regs*/)
     {
-        if (g_kernal->currentThread)
-        {
-            // Mark the current thread as halted
-            g_kernal->currentThread.state = THREAD_HALTED;
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
 
-            // Trigger a context switch to the next ready thread
-            Kernal_Yield();
-        } else {
-            NVIC_SystemReset();
+        bool is_usage_fault = (cfsr & 0xFFFF0000) != 0;
+        bool is_bus_fault = (cfsr & 0x0000FF00) != 0;
+        bool is_memmanage_fault = (cfsr & 0x000000FF) != 0;
+        bool is_forced_hardfault = (hfsr & (1 << 30)) != 0;
+
+        // If it's a recoverable fault, isolate the thread
+        if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)
+        {
+            if (g_kernal && g_kernal->currentThread)
+            {
+                g_kernal->currentThread->state = THREAD_HALTED;
+                Kernal_Yield();
+                return;
+            }
         }
+
+        // If it's not recoverable or no thread context, reset
+        NVIC_SystemReset();
+    }
+
+    void DebugMon_Handler(void)
+    {
+        return; // TODO actually implement this handler.
     }
 }
 

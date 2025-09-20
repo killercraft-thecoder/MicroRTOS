@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "core_cm4.h" // or core_cm3.h / core_cm7.h
 #include "cmsis_gcc.h"
-#include "process.h"
+#include "include/process.h"
 #include "mpu.h"
 
 #define MAX_THREADS 8
@@ -129,10 +129,13 @@ static inline void Yield(void)
     __asm volatile("svc %[imm]" ::[imm] "I"(SVC_YIELD) : "memory");
 }
 
-static inline void Thread_Exit(void)
+static inline void Thread_Exit(int code)
 {
-    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_EXIT) : "memory");
+    register int r0 __asm("r0") = code;
+    __asm volatile("svc %[imm]" :: "r"(r0), [imm] "I"(SVC_EXIT) : "memory");
 }
+
+
 
 static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                  uint32_t *stack, uint32_t stackBytes, uint32_t priority)
@@ -237,11 +240,12 @@ void Kernal_Yield(void)
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
-void Kernal_Thread_Exit(void)
+void Kernel_Thread_Exit(int code)
 {
-    Thread *t = g_kernal.currentThread;
+    Thread *t = g_kernel.currentThread;
+    t->exit_code = code;              // store for debugging
     t->state = THREAD_TERMINATED;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger context switch
 }
 
 void Scheduler_Tick(void)
@@ -475,7 +479,7 @@ extern "C"
             Kernel_Remove_Process((Process *)frame[0]);
             break;
         case SVC_EXIT:
-            Kernal_Thread_Exit();
+            Kernal_Thread_Exit(frame[0]);
             break;
         case SVC_GPIO_WRITE:
             Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinState)frame[2]);

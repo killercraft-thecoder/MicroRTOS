@@ -96,5 +96,5 @@ static inline TaskHandle_t xTaskCreateStatic(TaskFunction_t pxTaskCode,
 // vTaskDelete: only support deleting self to keep it tiny
 static inline void vTaskDelete(TaskHandle_t xTaskToDelete) {
     (void)xTaskToDelete; // only self-delete supported minimally
-    Thread_Exit();
+    Thread_Exit(0);
 }

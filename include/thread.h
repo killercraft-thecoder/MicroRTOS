@@ -147,6 +147,7 @@ typedef struct
     void *arg;                // Argument to entry function
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
+    int exit_code; // Exit Code
 } Thread;
 
 typedef Thread thread_t;
@@ -216,7 +217,7 @@ void Scheduler_Tick(void);
 /** 
  * @brief Exit Current Thread
 */
-void Thread_Exit(void);
+void Thread_Exit(int code);
 
 /**
  * @brief Select the next thread to run.
