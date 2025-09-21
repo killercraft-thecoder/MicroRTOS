@@ -1,5 +1,5 @@
 # Project TODO List
 
-- []:Nothing TO DO.
+- [InComplete API]: Must a dd Creation of SPI/I2C/UART/etc handlers.
 
 ────────────────────────────

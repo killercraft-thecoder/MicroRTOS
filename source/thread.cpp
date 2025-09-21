@@ -77,7 +77,8 @@ static inline void Save_Context(Thread *t)
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
     // If lazily stacking FP context, also capture FP state when active.
     // Optionally detect FPCA bit in CONTROL before touching FP regs.
-    // t->fpscr = __get_FPSCR(); // if you expose an intrinsic or inline asm
+    // t->fpscr = __get_FPSCR(); // if it expose an intrinsic or inline asm
+    __get_FPSCR
 #endif
 }
 
@@ -89,7 +90,7 @@ static inline void Restore_Context(Thread *t)
     __set_FAULTMASK(t->faultmask);
 
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
-    // Restore FP state here if you save it (and FPCA is set for the thread)
+    // Restore FP state here if it save's it (and FPCA is set for the thread)
     // __set_FPSCR(t->fpscr);
 #endif
 
@@ -359,28 +360,31 @@ __attribute__((naked)) void PendSV_Handler(void)
         "bx    lr                      \n");
 }
 
-void PendSV_Save(void)
+extern "C"
 {
-    if (g_kernel.currentThread)
+
+    void PendSV_Save(void)
     {
-        Save_Context(g_kernel.currentThread);
-        g_kernel.currentThread->state = THREAD_READY;
+        if (g_kernel.currentThread)
+        {
+            Save_Context(g_kernel.currentThread);
+            g_kernel.currentThread->state = THREAD_READY;
+        }
+    }
+
+    void PendSV_Restore(void)
+    {
+        Thread *next = pick_next_thread();
+        if (!next || next == NULL)
+            return;
+
+        g_kernel.currentThread = next;
+        g_kernel.currentThread->state = THREAD_RUNNING;
+
+        Restore_Context(g_kernel.currentThread);
+        // Exception return will restore R0–R3, R12, LR, PC, xPSR from PSP.
     }
 }
-
-void PendSV_Restore(void)
-{
-    Thread *next = pick_next_thread();
-    if (!next || next == NULL)
-        return;
-
-    g_kernel.currentThread = next;
-    g_kernel.currentThread->state = THREAD_RUNNING;
-
-    Restore_Context(g_kernel.currentThread);
-    // Exception return will restore R0–R3, R12, LR, PC, xPSR from PSP.
-}
-
 __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
 {
     register uint32_t r0 __asm__("r0") = ms;
@@ -428,6 +432,21 @@ static inline uint32_t Kernel_GetTick(void)
 
 extern "C"
 {
+    HAL_StatusTypeDef Kernel_SPI_Transmit(SPI_Args *args)
+    {
+        return HAL_SPI_Transmit(args->hspi, args->txData, args->size, args->timeout);
+    }
+
+    HAL_StatusTypeDef Kernel_SPI_Receive(SPI_Args *args)
+    {
+        return HAL_SPI_Receive(args->hspi, args->rxData, args->size, args->timeout);
+    }
+
+    HAL_StatusTypeDef Kernel_SPI_TransmitReceive(SPI_Args *args)
+    {
+        return HAL_SPI_TransmitReceive(args->hspi, args->txData, args->rxData, args->size, args->timeout);
+    }
+
     // Extract SVC immediate from the SVC instruction at (PC - 2)
     static inline uint8_t read_svc_number(uint32_t stacked_pc)
     {
@@ -499,6 +518,17 @@ extern "C"
         case SVC_GET_TICK:
             frame[0] = Kernel_GetTick();
             break;
+        case SVC_SPI_TRANSMIT:
+            frame[0] = Kernel_SPI_Transmit((SPI_Args *)frame[0]);
+            break;
+        case SVC_SPI_RECEIVE:
+            frame[0] = Kernel_SPI_Receive((SPI_Args *)frame[0]);
+            break;
+        case SVC_SPI_TRANSMITRECV:
+            frame[0] = Kernel_SPI_TransmitReceive((SPI_Args *)frame[0]);
+            break;
+
+
         default:
             break;
         }

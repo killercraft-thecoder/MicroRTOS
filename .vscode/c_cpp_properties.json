@@ -1,9 +1,11 @@
 {
     "configurations": [
+       
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**\"",
+                "${workspaceFolder}/include/**"
             ],
             "defines": [
                 "_DEBUG",
@@ -11,7 +13,7 @@
                 "_UNICODE"
             ],
             "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
-            "cStandard": "c23",
+            "cStandard": "gnu23",
             "cppStandard": "c++17"
         }
     ],

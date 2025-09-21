@@ -14,9 +14,10 @@
 #define THREAD_H
 
 #include <stdint.h>
-#include "../include/stm32f4xx_hal_gpio.h"
-#include "../include/stm32f4xx_hal_uart.h"
-#include "../include/stm32f4xx_ll_hal.h"
+#include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_uart.h"
+#include "stm32f4xx_ll_hal.h"
+#include "stm32f4xx_hal_spi.h"
 
 #define __atomic_read(src, dest)   \
     do {                           \
@@ -96,6 +97,9 @@ enum
     SVC_UART_TRANSMIT = 12,
     SVC_UART_RECEIVE = 13,
     SVC_I2C_MASTER_TXRX = 14,
+    SVC_SPI_TRANSMIT = 15,
+    SVC_SPI_RECEIVE = 16,
+    SVC_SPI_TRANSMITRECV = 17,
 
     // Time Services
     SVC_GET_TICK = 40,
@@ -258,83 +262,61 @@ static inline void Restore_Context(Thread *t);
  */
 void Thread_Sleep(time_t ms);
 
-/**
- * @brief Transmit data over a UART from an unprivileged thread.
- *
- * Issues an SVC to request the kernel perform a HAL_UART_Transmit() on behalf
- * of the calling thread. This ensures the operation runs in privileged mode
- * and can safely access UART hardware registers.
- *
- * @param huart   Pointer to an initialized UART handle (HAL).
- * @param pData   Pointer to the data buffer to send.
- * @param Size    Number of bytes to transmit.
- * @param Timeout Timeout in milliseconds.
- * @return HAL status code (HAL_OK on success, HAL_ERROR/HAL_TIMEOUT on failure).
- */
-static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+typedef struct {
+    SPI_HandleTypeDef *hspi;
+    uint8_t *txData;
+    uint8_t *rxData;
+    uint16_t size;
+    uint32_t timeout;
+} SPI_Args;
+
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_Args *args) {
+    HAL_StatusTypeDef result;
+    __asm volatile(
+        "svc %1       \n"
+        "mov %0, r0   \n"
+        : "=r"(result)
+        : "I"(SVC_SPI_TRANSMIT), "r"(args)
+        : "r0");
+    return result;
+}
 
 /**
- * @brief Receive data from a UART into a buffer from an unprivileged thread.
- *
- * Issues an SVC to request the kernel perform a HAL_UART_Receive() on behalf
- * of the calling thread. This ensures the operation runs in privileged mode
- * and can safely access UART hardware registers.
- *
- * @param huart   Pointer to an initialized UART handle (HAL).
- * @param pData   Pointer to the buffer to store received data.
- * @param Size    Maximum number of bytes to receive.
- * @param Timeout Timeout in milliseconds.
- * @return HAL status code (HAL_OK on success, HAL_ERROR/HAL_TIMEOUT on failure).
+ * @brief Receive data over SPI in an RTOS-safe way.
+ * @param pData Pointer to buffer to store received data.
+ * @param Size Number of bytes to receive.
+ * @param Timeout Timeout duration in milliseconds.
+ * @return HAL status.
  */
-static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_Args *args) {
+    HAL_StatusTypeDef result;
+    __asm volatile(
+        "svc %1       \n"
+        "mov %0, r0   \n"
+        : "=r"(result)
+        : "I"(SVC_SPI_RECEIVE), "r"(args)
+        : "r0");
+    return result;
+}
 
 /**
- * @brief Set the output level of a GPIO pin from an unprivileged thread.
- *
- * Issues an SVC to request the kernel perform a HAL_GPIO_WritePin() on behalf
- * of the calling thread. This ensures the operation runs in privileged mode
- * and can safely access GPIO hardware registers.
- *
- * @param port  GPIO port base pointer (e.g., GPIOA).
- * @param pin   Pin mask (e.g., GPIO_PIN_5).
- * @param state Desired pin state (GPIO_PIN_SET or GPIO_PIN_RESET).
+ * @brief Transmit and receive data over SPI (full-duplex) in an RTOS-safe way.
+ * @param pTxData Pointer to transmit buffer.
+ * @param pRxData Pointer to receive buffer.
+ * @param Size Number of bytes to transmit/receive.
+ * @param Timeout Timeout duration in milliseconds.
+ * @return HAL status.
  */
-static inline void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state);
-
-/**
- * @brief Read the input level of a GPIO pin from an unprivileged thread.
- *
- * Issues an SVC to request the kernel perform a HAL_GPIO_ReadPin() on behalf
- * of the calling thread. This ensures the operation runs in privileged mode
- * and can safely access GPIO hardware registers.
- *
- * @param port GPIO port base pointer (e.g., GPIOA).
- * @param pin  Pin mask (e.g., GPIO_PIN_5).
- * @return GPIO pin state (GPIO_PIN_SET or GPIO_PIN_RESET).
- */
-static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin);
-
-/**
- * @brief Perform a combined I2C master transmit and/or receive from an unprivileged thread.
- *
- * Issues an SVC to request the kernel perform HAL_I2C_Master_Transmit() and/or
- * HAL_I2C_Master_Receive() on behalf of the calling thread. This ensures the
- * operation runs in privileged mode and can safely access I2C hardware registers.
- *
- * @param hi2c       Pointer to an initialized I2C handle (HAL).
- * @param DevAddress 7-bit I2C device address (left-aligned, no R/W bit).
- * @param pTxData    Pointer to transmit buffer (NULL if no TX phase).
- * @param TxSize     Number of bytes to transmit (0 if no TX phase).
- * @param pRxData    Pointer to receive buffer (NULL if no RX phase).
- * @param RxSize     Number of bytes to receive (0 if no RX phase).
- * @param Timeout    Timeout in milliseconds for each phase.
- * @return HAL status code (HAL_OK on success, HAL_ERROR/HAL_TIMEOUT on failure).
- */
-static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
-                                                           uint16_t DevAddress,
-                                                           uint8_t *pTxData, uint16_t TxSize,
-                                                           uint8_t *pRxData, uint16_t RxSize,
-                                                           uint32_t Timeout);
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitReceive(SPI_Args *args) {
+    HAL_StatusTypeDef result;
+    __asm volatile(
+        "svc %1       \n"
+        "mov %0, r0   \n"
+        : "=r"(result)
+        : "I"(SVC_SPI_TRANSMITRECV), "r"(args)
+        : "r0");
+    return result;
+}
 
 /**
  * @brief Get the current system tick count.
@@ -356,8 +338,6 @@ static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi
 time_t OS_GetTick(void);
 
 // How Many Milliseconds since boot
-static inline time_t OS_runtimeMS(void) {
-    return OS_GetTick();
-}
+static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
 
 #endif // THREAD_H

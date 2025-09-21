@@ -84,8 +84,7 @@ static void ConfigureOSDataMPU_Once(void)
 
     MPU_ConfigureRegion(OS_MPU_REGION_INDEX, &r);
 
-    // Leave enabling MPU to system init, or enable here if desired:
-    // MPU_Enable();
+    // Leave enabling MPU to system init.
 
     g_osMpuConfigured = 1;
 

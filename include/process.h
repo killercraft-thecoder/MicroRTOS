@@ -10,7 +10,6 @@ typedef struct
 {
     uint32_t pid;        // Process ID
     Thread *mainThread;  // Main thread of the process
-    void *memoryRegion;  // Pointer to process memory (if needed)
     uint32_t memorySize; // Size of allocated memory
 
 } Process;
@@ -39,7 +38,7 @@ typedef struct
     // -------------------
     //  System Tick Managment
     // -------------------
-    uint32_t systemTicks;
+    tick_t systemTicks;
     // --------------------
     // Process management
     // --------------------
@@ -65,10 +64,11 @@ extern KernelData g_kernel;
 #endif
 
 #ifdef ENABLE_GLOBAL_DATA
+
 typedef struct
 {
-    // 64-bit general-purpose flags — bit meanings are up to user code
-    volatile uint64_t flags;
+    // 32-bit general-purpose flags — bit meanings are up to user code
+    volatile uint32_t flags;
 
     // 32-bit timestamp or counter (can be OS_GetTick, downtime,etc)
     volatile time_t timestamp;
@@ -89,18 +89,22 @@ typedef struct
 
 // Declare the global instance
 extern OS_GlobalShared g_shared;
+
 #elif defined(ENABLE_SMALL_GLOBAL_DATA)
+
 typedef struct
 {
     /**  32-bit general-purpose flags — bit meanings are up to user code */
-    volatile uint32_t flags;
+    volatile uint16_t flags;
     /** 32-bit counter */
     volatile uint32_t counter;
     /** 32-bit general-purpose data slots */
     volatile uint32_t data32[4];
 } OS_GlobalShared;
+
 // Declare the global instance
 extern OS_GlobalShared g_shared;
+
 #endif
 
 void Add_Process(Process process);
