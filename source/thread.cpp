@@ -566,15 +566,6 @@ static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
     return (GPIO_PinState)ret;
 }
 
-// UART
-typedef struct
-{
-    UART_HandleTypeDef *huart;
-    uint8_t *pData;
-    uint16_t Size;
-    uint32_t Timeout;
-} UART_Args;
-
 static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
     UART_Args args = {huart, pData, Size, Timeout};
@@ -593,17 +584,6 @@ static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t 
     return ret;
 }
 
-// I2C
-typedef struct
-{
-    I2C_HandleTypeDef *hi2c;
-    uint16_t DevAddress;
-    uint8_t *pTxData;
-    uint16_t TxSize;
-    uint8_t *pRxData;
-    uint16_t RxSize;
-    uint32_t Timeout;
-} I2C_Args;
 
 static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                                            uint16_t DevAddress,

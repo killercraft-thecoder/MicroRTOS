@@ -8,6 +8,7 @@
                 "${workspaceFolder}/include/**"
             ],
             "defines": [
+                "__VFP_FP__",
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"

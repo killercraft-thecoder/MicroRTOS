@@ -18,6 +18,7 @@
 #include "stm32f4xx_hal_uart.h"
 #include "stm32f4xx_ll_hal.h"
 #include "stm32f4xx_hal_spi.h"
+#include "mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
 #define __atomic_read(src, dest)   \
     do {                           \
@@ -180,7 +181,7 @@ void Init_Scheduler(void);
  * the SysTick timer for 1 ms ticks, and triggers a PendSV to perform the first
  * context switch. Then enters the idle loop, sleeping until interrupts occur.
  *
- * @note This function does not return under normal operation.
+ * @note This function does not return under normal operation. Also this is auto called by `Init_Skeduler`
  */
 void Start_Scheduler(void);
 
@@ -317,6 +318,63 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitRecei
         : "r0");
     return result;
 }
+
+/**
+ * @brief Write a logic state to a GPIO pin.
+ */
+void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state);
+
+/**
+ * @brief Read the logic state of a GPIO pin.
+ */
+GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin);
+
+/**
+ * @brief UART argument structure.
+ */
+typedef struct
+{
+    UART_HandleTypeDef *huart;
+    uint8_t *pData;
+    uint16_t Size;
+    uint32_t Timeout;
+} UART_Args;
+
+/**
+ * @brief Transmit data over UART.
+ */
+HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData,
+                                uint16_t Size, uint32_t Timeout);
+
+/**
+ * @brief Receive data over UART.
+ */
+HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData,
+                               uint16_t Size, uint32_t Timeout);
+
+/**
+ * @brief I2C argument structure.
+ */
+typedef struct
+{
+    I2C_HandleTypeDef *hi2c;
+    uint16_t DevAddress;
+    uint8_t *pTxData;
+    uint16_t TxSize;
+    uint8_t *pRxData;
+    uint16_t RxSize;
+    uint32_t Timeout;
+} I2C_Args;
+
+/**
+ * @brief Perform an I2C master transmit + receive transaction.
+ */
+HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
+                                             uint16_t DevAddress,
+                                             uint8_t *pTxData, uint16_t TxSize,
+                                             uint8_t *pRxData, uint16_t RxSize,
+                                             uint32_t Timeout);
+
 
 /**
  * @brief Get the current system tick count.
