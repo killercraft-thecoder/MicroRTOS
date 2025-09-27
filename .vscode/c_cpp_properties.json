@@ -9,6 +9,7 @@
             ],
             "defines": [
                 "__VFP_FP__",
+                "USER_VECT_TAB_ADDRESS",
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"

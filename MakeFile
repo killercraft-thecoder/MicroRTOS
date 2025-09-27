@@ -1,0 +1,28 @@
+# Toolchain
+CC = arm-none-eabi-gcc
+LD = arm-none-eabi-ld
+OBJCOPY = arm-none-eabi-objcopy
+
+# MCU flags
+MCU = cortex-m4
+CFLAGS = -mcpu=$(MCU) -mthumb -O2 -nostdlib -ffreestanding
+LDFLAGS = -TInclude/stm32f401.ld
+
+# Sources
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+
+# Output
+TARGET = firmware.elf
+BIN = firmware.bin
+
+all: $(BIN)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+
+$(BIN): $(TARGET)
+	$(OBJCOPY) -O binary $< $@
+
+clean:
+	rm -f *.o $(TARGET) $(BIN)
