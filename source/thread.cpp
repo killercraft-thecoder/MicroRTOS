@@ -41,7 +41,7 @@ static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
 
     t->psp = stackTop;
 
-    // Optional bookkeeping
+    // bookkeeping
     t->context.R0 = (uint32_t)arg;
     t->context.R1 = 0x01010101;
     t->context.R2 = 0x02020202;
@@ -78,8 +78,7 @@ static inline void Save_Context(Thread *t)
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
     // If lazily stacking FP context, also capture FP state when active.
     // Optionally detect FPCA bit in CONTROL before touching FP regs.
-    // t->fpscr = __get_FPSCR(); // if it expose an intrinsic or inline asm
-    __get_FPSCR
+    // t->fpscr = __get_FPSCR(); // GET FPSCR
 #endif
 }
 
@@ -131,7 +130,7 @@ static inline void Yield(void)
     __asm volatile("svc %[imm]" ::[imm] "I"(SVC_YIELD) : "memory");
 }
 
-static inline void Thread_Exit(int code)
+static inline void Thread_Exit(status_t code)
 {
     register int r0 __asm("r0") = code;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_EXIT) : "memory");
@@ -156,7 +155,7 @@ static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
         : "memory");
 }
 
-void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                           uint32_t *stack, uint32_t stackBytes, uint8_t priority)
 {
     if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS)
@@ -240,7 +239,7 @@ void Kernal_Yield(void)
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
-void Kernel_Thread_Exit(int code)
+void Kernel_Thread_Exit(status_t code)
 {
     Thread *t = g_kernel.currentThread;
     t->exit_code = code; // store for debugging
@@ -433,6 +432,108 @@ static inline uint32_t Kernel_GetTick(void)
 
 extern "C"
 {
+
+    static void enable_uart_clock(USART_TypeDef *i)
+    {
+#ifdef __HAL_RCC_USART1_CLK_ENABLE
+        if (i == USART1)
+        {
+            __HAL_RCC_USART1_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_USART2_CLK_ENABLE
+        if (i == USART2)
+        {
+            __HAL_RCC_USART2_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_USART3_CLK_ENABLE
+        if (i == USART3)
+        {
+            __HAL_RCC_USART3_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_USART6_CLK_ENABLE
+        if (i == USART6)
+        {
+            __HAL_RCC_USART6_CLK_ENABLE();
+            return;
+        }
+#endif
+    }
+    static void enable_i2c_clock(I2C_TypeDef *i)
+    {
+#ifdef __HAL_RCC_I2C1_CLK_ENABLE
+        if (i == I2C1)
+        {
+            __HAL_RCC_I2C1_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_I2C2_CLK_ENABLE
+        if (i == I2C2)
+        {
+            __HAL_RCC_I2C2_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_I2C3_CLK_ENABLE
+        if (i == I2C3)
+        {
+            __HAL_RCC_I2C3_CLK_ENABLE();
+            return;
+        }
+#endif
+    }
+    static void enable_spi_clock(SPI_TypeDef *i)
+    {
+#ifdef __HAL_RCC_SPI1_CLK_ENABLE
+        if (i == SPI1)
+        {
+            __HAL_RCC_SPI1_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_SPI2_CLK_ENABLE
+        if (i == SPI2)
+        {
+            __HAL_RCC_SPI2_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_SPI3_CLK_ENABLE
+        if (i == SPI3)
+        {
+            __HAL_RCC_SPI3_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_SPI4_CLK_ENABLE
+        if (i == SPI4)
+        {
+            __HAL_RCC_SPI4_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_SPI5_CLK_ENABLE
+        if (i == SPI5)
+        {
+            __HAL_RCC_SPI5_CLK_ENABLE();
+            return;
+        }
+#endif
+#ifdef __HAL_RCC_SPI6_CLK_ENABLE
+        if (i == SPI6)
+        {
+            __HAL_RCC_SPI6_CLK_ENABLE();
+            return;
+        }
+#endif
+    }
+
     static HAL_StatusTypeDef Kernel_GPIO_New(const GPIO_NewArgs *a)
     {
         if (!a || !a->port)

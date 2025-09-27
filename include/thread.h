@@ -230,12 +230,12 @@ void Scheduler_Tick(void);
 /**
  * @brief Exit Current Thread
  */
-void Thread_Exit(int code);
+void Thread_Exit(status_t code);
 
 /**
  * @brief Select the next thread to run.
  *
- * Implements the scheduling policy (e.g., round-robin or priority-based) to
+ * Implements the scheduling policy to
  * choose the next ready thread from the scheduler's ready list.
  *
  * @return Pointer to the Thread control block of the next thread to run,
