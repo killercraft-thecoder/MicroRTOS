@@ -20,15 +20,17 @@
 #include "stm32f4xx_hal_spi.h"
 #include "mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
-#define __atomic_read(src, dest)   \
-    do {                           \
-        __disable_irq();           \
-        (dest) = (src);            \
-        __enable_irq();            \
+#define __atomic_read(src, dest) \
+    do                           \
+    {                            \
+        __disable_irq();         \
+        (dest) = (src);          \
+        __enable_irq();          \
     } while (0)
 
 #define __atomic_write(var, value) \
-    do {                           \
+    do                             \
+    {                              \
         __disable_irq();           \
         (var) = (value);           \
         __finish_writes();         \
@@ -36,39 +38,42 @@
     } while (0)
 
 // Ensure all memory writes complete before continuing
-#define __finish_writes()   __DSB()
+#define __finish_writes() __DSB()
 
 // Ensure memory accesses are observed in order
-#define __flush_memory()    __DMB()
+#define __flush_memory() __DMB()
 
 // Flush CPU pipeline (use after changing system control registers)
-#define __flush_pipeline()  __ISB()
+#define __flush_pipeline() __ISB()
 
 // Full sync: flush memory + finish writes + pipeline
-#define __sync_all()        do { __DMB(); __DSB(); __ISB(); } while (0)
-
-
-
+#define __sync_all() \
+    do               \
+    {                \
+        __DMB();     \
+        __DSB();     \
+        __ISB();     \
+    } while (0)
 
 // Time & durations
-typedef uint32_t time_t;        // absolute time in ms since boot (1 tick = 1 ms)
-typedef int32_t  duration_t;    // signed interval in ms (end - start)
+typedef uint32_t time_t;    // absolute time in ms since boot (1 tick = 1 ms)
+typedef int32_t duration_t; // signed interval in ms (end - start)
 
 // Scheduling & priorities
-typedef uint8_t  priority_t;    // thread priority level
-typedef uint32_t tick_t;        // tick count
+typedef uint8_t priority_t; // thread priority level
+typedef uint32_t tick_t;    // tick count
 
 // Flags & masks
-typedef uint32_t flag32_t;      // 32-bit flags
-typedef uint64_t flag64_t;      // 64-bit flags
-typedef uint16_t flag16_t;      // 16-bit flags
+typedef uint32_t flag32_t; // 32-bit flags
+typedef uint64_t flag64_t; // 64-bit flags
+typedef uint16_t flag16_t; // 16-bit flags
 
 // Sizes & counts
-typedef uint32_t size_t;        // object sizes, buffer lengths
-typedef uint32_t count_t;       // generic counter type
+typedef uint32_t size_t;  // object sizes, buffer lengths
+typedef uint32_t count_t; // generic counter type
 
 // Error/status codes
-typedef int status_t;      // return codes from threads/OS functions in the future.
+typedef int status_t; // return codes from threads/OS functions in the future.
 
 typedef enum : uint8_t
 {
@@ -101,6 +106,10 @@ enum
     SVC_SPI_TRANSMIT = 15,
     SVC_SPI_RECEIVE = 16,
     SVC_SPI_TRANSMITRECV = 17,
+    SVC_GPIO_NEW = 18,
+    SVC_UART_NEW = 19,
+    SVC_I2C_NEW = 20,
+    SVC_SPI_NEW = 21,
 
     // Time Services
     SVC_GET_TICK = 40,
@@ -114,21 +123,21 @@ enum
  */
 typedef struct
 {
-    uint32_t R0; // R0
-    uint32_t R1; // R1
-    uint32_t R2; // R2 
-    uint32_t R3; // R3
-    uint32_t R4; // R4
-    uint32_t R5; // R5
-    uint32_t R6; // R6
-    uint32_t R7; // R7
-    uint32_t R8; // R8
-    uint32_t R9; // R9
+    uint32_t R0;  // R0
+    uint32_t R1;  // R1
+    uint32_t R2;  // R2
+    uint32_t R3;  // R3
+    uint32_t R4;  // R4
+    uint32_t R5;  // R5
+    uint32_t R6;  // R6
+    uint32_t R7;  // R7
+    uint32_t R8;  // R8
+    uint32_t R9;  // R9
     uint32_t R10; // R10
     uint32_t R11; // R11
     uint32_t R12; // R12
-    uint32_t SP; // Process Stack Pointer
-    uint32_t LR; // Link Register
+    uint32_t SP;  // Process Stack Pointer
+    uint32_t LR;  // Link Register
 } PROCESSOR_TCB;
 
 /**
@@ -141,7 +150,7 @@ typedef struct
     uint32_t *psp;         // Process Stack Pointer (top of saved frame)
     uint32_t *stackBase;   // Base of stack memory
     uint32_t stackSize;    // Stack size in bytes
-    priority_t priority;      // Static priority
+    priority_t priority;   // Static priority
     uint8_t control;       // Saved CONTROL value (nPRIV, SPSEL, FPCA)
     uint8_t primask;
     uint8_t basepri;
@@ -152,11 +161,10 @@ typedef struct
     void *arg;                // Argument to entry function
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
-    status_t exit_code; // Exit Code
+    status_t exit_code;       // Exit Code
 } Thread;
 
 typedef Thread thread_t;
-
 
 // -----------------------------------------------------------------------------
 // Scheduler API
@@ -199,7 +207,7 @@ void Start_Scheduler(void);
  * @param stackBytes  Size of the stack in bytes.
  * @param priority    Thread priority (0 = lowest, higher = more urgent).
  */
-void Create_Thread(thread_t *t, void (*entry)(void *), void* arg,
+void Create_Thread(thread_t *t, void (*entry)(void *), void *arg,
                    uint32_t *stack, size_t stackBytes, status_t priority);
 
 /**
@@ -219,9 +227,9 @@ void Yield(void);
  */
 void Scheduler_Tick(void);
 
-/** 
+/**
  * @brief Exit Current Thread
-*/
+ */
 void Thread_Exit(int code);
 
 /**
@@ -263,7 +271,8 @@ static inline void Restore_Context(Thread *t);
  */
 void Thread_Sleep(time_t ms);
 
-typedef struct {
+typedef struct
+{
     SPI_HandleTypeDef *hspi;
     uint8_t *txData;
     uint8_t *rxData;
@@ -271,7 +280,8 @@ typedef struct {
     uint32_t timeout;
 } SPI_Args;
 
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_Args *args) {
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_Args *args)
+{
     HAL_StatusTypeDef result;
     __asm volatile(
         "svc %1       \n"
@@ -289,7 +299,8 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_
  * @param Timeout Timeout duration in milliseconds.
  * @return HAL status.
  */
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_Args *args) {
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_Args *args)
+{
     HAL_StatusTypeDef result;
     __asm volatile(
         "svc %1       \n"
@@ -308,7 +319,8 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_A
  * @param Timeout Timeout duration in milliseconds.
  * @return HAL status.
  */
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitReceive(SPI_Args *args) {
+__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitReceive(SPI_Args *args)
+{
     HAL_StatusTypeDef result;
     __asm volatile(
         "svc %1       \n"
@@ -374,7 +386,69 @@ HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                              uint8_t *pTxData, uint16_t TxSize,
                                              uint8_t *pRxData, uint16_t RxSize,
                                              uint32_t Timeout);
+/**
+ * @brief Create and initialize a new GPIO pin.
+ * @param port GPIO port base (GPIOA, GPIOB, ...).
+ * @param pin  Pin mask (GPIO_PIN_x).
+ * @param mode GPIO mode (e.g. GPIO_MODE_OUTPUT_PP).
+ * @param pull Pull-up/down config (GPIO_NOPULL, GPIO_PULLUP, ...).
+ * @param speed Speed config (GPIO_SPEED_FREQ_LOW, ...).
+ */
+void GPIO_NEW(GPIO_TypeDef *port, uint16_t pin,
+              uint32_t mode, uint32_t pull, uint32_t speed);
 
+/**
+ * @brief Create and initialize a new UART handle.
+ * @param instance UART instance (e.g. USART1, USART2).
+ * @param baudrate Baud rate (e.g. 115200).
+ * @param wordLength Word length (UART_WORDLENGTH_8B, ...).
+ * @param stopBits Stop bits (UART_STOPBITS_1, ...).
+ * @param parity Parity (UART_PARITY_NONE, ...).
+ * @param mode Mode (UART_MODE_TX_RX, ...).
+ * @return Pointer to initialized UART handle.
+ */
+UART_HandleTypeDef *UART_NEW(USART_TypeDef *instance,
+                             uint32_t baudrate,
+                             uint32_t wordLength,
+                             uint32_t stopBits,
+                             uint32_t parity,
+                             uint32_t mode);
+
+/**
+ * @brief Create and initialize a new I2C handle.
+ * @param instance I2C instance (I2C1, I2C2, ...).
+ * @param timing Timing register value (from CubeMX or datasheet).
+ * @param addressingMode Addressing mode (I2C_ADDRESSINGMODE_7BIT, ...).
+ * @param ownAddress Own address (if slave mode).
+ * @return Pointer to initialized I2C handle.
+ */
+I2C_HandleTypeDef *I2C_NEW(I2C_TypeDef *instance,
+                           uint32_t timing,
+                           uint32_t addressingMode,
+                           uint32_t ownAddress);
+
+/**
+ * @brief Create and initialize a new SPI handle.
+ * @param instance SPI instance (SPI1, SPI2, ...).
+ * @param mode SPI mode (SPI_MODE_MASTER or SPI_MODE_SLAVE).
+ * @param direction SPI direction (SPI_DIRECTION_2LINES, ...).
+ * @param datasize Data size (SPI_DATASIZE_8BIT, ...).
+ * @param clkpolarity Clock polarity (SPI_POLARITY_LOW/HIGH).
+ * @param clkphase Clock phase (SPI_PHASE_1EDGE/2EDGE).
+ * @param nss NSS management (SPI_NSS_SOFT/HARD_INPUT/HARD_OUTPUT).
+ * @param baudratePrescaler Prescaler (SPI_BAUDRATEPRESCALER_x).
+ * @param firstBit First bit (SPI_FIRSTBIT_MSB/LSB).
+ * @return Pointer to initialized SPI handle.
+ */
+SPI_HandleTypeDef *SPI_NEW(SPI_TypeDef *instance,
+                           uint32_t mode,
+                           uint32_t direction,
+                           uint32_t datasize,
+                           uint32_t clkpolarity,
+                           uint32_t clkphase,
+                           uint32_t nss,
+                           uint32_t baudratePrescaler,
+                           uint32_t firstBit);
 
 /**
  * @brief Get the current system tick count.

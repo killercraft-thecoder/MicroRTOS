@@ -6,6 +6,7 @@
 #include "cmsis_gcc.h"
 #include "include/process.h"
 #include "mpu.h"
+#include "stm32f4xx_hal.h"
 
 #define MAX_THREADS 8
 #define TICK_HZ 1000U // 1 ms tick
@@ -432,6 +433,76 @@ static inline uint32_t Kernel_GetTick(void)
 
 extern "C"
 {
+    static HAL_StatusTypeDef Kernel_GPIO_New(const GPIO_NewArgs *a)
+    {
+        if (!a || !a->port)
+            return HAL_ERROR;
+        GPIO_InitTypeDef init = {.Pin = a->pin, .Mode = a->mode, .Pull = a->pull, .Speed = a->speed};
+        HAL_GPIO_Init(a->port, &init);
+        return HAL_OK;
+    }
+
+    static HAL_StatusTypeDef Kernel_UART_New(const UART_NewArgs *a)
+    {
+        if (!a || !a->huart || !a->instance)
+            return HAL_ERROR;
+        enable_uart_clock(a->instance);
+
+        memset(a->huart, 0, sizeof(*a->huart));
+        a->huart->Instance = a->instance;
+        a->huart->Init.BaudRate = a->baudrate;
+        a->huart->Init.WordLength = a->wordLength;
+        a->huart->Init.StopBits = a->stopBits;
+        a->huart->Init.Parity = a->parity;
+        a->huart->Init.Mode = a->mode;
+        a->huart->Init.HwFlowCtl = UART_HWCONTROL_NONE;
+        a->huart->Init.OverSampling = UART_OVERSAMPLING_16;
+
+        return HAL_UART_Init(a->huart);
+    }
+
+    static HAL_StatusTypeDef Kernel_I2C_New(const I2C_NewArgs *a)
+    {
+        if (!a || !a->hi2c || !a->instance)
+            return HAL_ERROR;
+        enable_i2c_clock(a->instance);
+
+        memset(a->hi2c, 0, sizeof(*a->hi2c));
+        a->hi2c->Instance = a->instance;
+        a->hi2c->Init.Timing = a->timing;
+        a->hi2c->Init.AddressingMode = a->addressingMode;
+        a->hi2c->Init.OwnAddress1 = a->ownAddress;
+        a->hi2c->Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+        a->hi2c->Init.OwnAddress2 = 0;
+        a->hi2c->Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+        a->hi2c->Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+
+        return HAL_I2C_Init(a->hi2c);
+    }
+
+    static HAL_StatusTypeDef Kernel_SPI_New(const SPI_NewArgs *a)
+    {
+        if (!a || !a->hspi || !a->instance)
+            return HAL_ERROR;
+        enable_spi_clock(a->instance);
+
+        memset(a->hspi, 0, sizeof(*a->hspi));
+        a->hspi->Instance = a->instance;
+        a->hspi->Init.Mode = a->mode;
+        a->hspi->Init.Direction = a->direction;
+        a->hspi->Init.DataSize = a->datasize;
+        a->hspi->Init.CLKPolarity = a->clkpolarity;
+        a->hspi->Init.CLKPhase = a->clkphase;
+        a->hspi->Init.NSS = a->nss;
+        a->hspi->Init.BaudRatePrescaler = a->baudratePrescaler;
+        a->hspi->Init.FirstBit = a->firstBit;
+        a->hspi->Init.TIMode = SPI_TIMODE_DISABLE;
+        a->hspi->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+        a->hspi->Init.CRCPolynomial = 7;
+
+        return HAL_SPI_Init(a->hspi);
+    }
+
     HAL_StatusTypeDef Kernel_SPI_Transmit(SPI_Args *args)
     {
         return HAL_SPI_Transmit(args->hspi, args->txData, args->size, args->timeout);
@@ -445,6 +516,64 @@ extern "C"
     HAL_StatusTypeDef Kernel_SPI_TransmitReceive(SPI_Args *args)
     {
         return HAL_SPI_TransmitReceive(args->hspi, args->txData, args->rxData, args->size, args->timeout);
+    }
+
+    static void Kernel_GPIO_Write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
+    {
+        if (port == NULL)
+            return; // invalid port
+        if (state != GPIO_PIN_RESET && state != GPIO_PIN_SET)
+            return; // invalid state
+        // Optional: validate pin mask against MCU's valid pins
+        HAL_GPIO_WritePin(port, pin, state);
+    }
+
+    static GPIO_PinState Kernel_GPIO_Read(GPIO_TypeDef *port, uint16_t pin)
+    {
+        if (port == NULL)
+            return GPIO_PIN_RESET;
+        // Optional: validate pin mask
+        return HAL_GPIO_ReadPin(port, pin);
+    }
+
+    static HAL_StatusTypeDef Kernel_UART_Transmit(UART_Args *a)
+    {
+        if (a == NULL || a->huart == NULL || a->pData == NULL)
+            return HAL_ERROR;
+        if (a->Size == 0)
+            return HAL_OK; // nothing to send
+        return HAL_UART_Transmit(a->huart, a->pData, a->Size, a->Timeout);
+    }
+
+    static HAL_StatusTypeDef Kernel_UART_Receive(UART_Args *a)
+    {
+        if (a == NULL || a->huart == NULL || a->pData == NULL)
+            return HAL_ERROR;
+        if (a->Size == 0)
+            return HAL_OK; // nothing to receive
+        return HAL_UART_Receive(a->huart, a->pData, a->Size, a->Timeout);
+    }
+
+    static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
+    {
+        if (a == NULL || a->hi2c == NULL)
+            return HAL_ERROR;
+        if ((a->TxSize > 0 && a->pTxData == NULL) ||
+            (a->RxSize > 0 && a->pRxData == NULL))
+            return HAL_ERROR;
+
+        HAL_StatusTypeDef ret = HAL_OK;
+        if (a->TxSize > 0)
+        {
+            ret = HAL_I2C_Master_Transmit(a->hi2c, a->DevAddress, a->pTxData, a->TxSize, a->Timeout);
+            if (ret != HAL_OK)
+                return ret;
+        }
+        if (a->RxSize > 0)
+        {
+            ret = HAL_I2C_Master_Receive(a->hi2c, a->DevAddress, a->pRxData, a->RxSize, a->Timeout);
+        }
+        return ret;
     }
 
     // Extract SVC immediate from the SVC instruction at (PC - 2)
@@ -527,7 +656,30 @@ extern "C"
         case SVC_SPI_TRANSMITRECV:
             frame[0] = Kernel_SPI_TransmitReceive((SPI_Args *)frame[0]);
             break;
-
+        case SVC_GPIO_NEW:
+        {
+            const GPIO_NewArgs *a = (const GPIO_NewArgs *)frame[0];
+            set_return_r0(sf, (uint32_t)Kernel_GPIO_New(a));
+            break;
+        }
+        case SVC_UART_NEW:
+        {
+            const UART_NewArgs *a = (const UART_NewArgs *)frame[0];
+            set_return_r0(sf, (uint32_t)Kernel_UART_New(a));
+            break;
+        }
+        case SVC_I2C_NEW:
+        {
+            const I2C_NewArgs *a = (const I2C_NewArgs *)frame[0];
+            set_return_r0(sf, (uint32_t)Kernel_I2C_New(a));
+            break;
+        }
+        case SVC_SPI_NEW:
+        {
+            const SPI_NewArgs *a = (const SPI_NewArgs *)frame[0];
+            set_return_r0(sf, (uint32_t)Kernel_SPI_New(a));
+            break;
+        }
 
         default:
             break;
@@ -584,7 +736,6 @@ static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t 
     return ret;
 }
 
-
 static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                                            uint16_t DevAddress,
                                                            uint8_t *pTxData, uint16_t TxSize,
@@ -595,63 +746,5 @@ static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi
     register I2C_Args *r0 __asm__("r0") = &args;
     register HAL_StatusTypeDef ret __asm__("r0");
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
-    return ret;
-}
-
-static void Kernel_GPIO_Write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
-{
-    if (port == NULL)
-        return; // invalid port
-    if (state != GPIO_PIN_RESET && state != GPIO_PIN_SET)
-        return; // invalid state
-    // Optional: validate pin mask against MCU's valid pins
-    HAL_GPIO_WritePin(port, pin, state);
-}
-
-static GPIO_PinState Kernel_GPIO_Read(GPIO_TypeDef *port, uint16_t pin)
-{
-    if (port == NULL)
-        return GPIO_PIN_RESET;
-    // Optional: validate pin mask
-    return HAL_GPIO_ReadPin(port, pin);
-}
-
-static HAL_StatusTypeDef Kernel_UART_Transmit(UART_Args *a)
-{
-    if (a == NULL || a->huart == NULL || a->pData == NULL)
-        return HAL_ERROR;
-    if (a->Size == 0)
-        return HAL_OK; // nothing to send
-    return HAL_UART_Transmit(a->huart, a->pData, a->Size, a->Timeout);
-}
-
-static HAL_StatusTypeDef Kernel_UART_Receive(UART_Args *a)
-{
-    if (a == NULL || a->huart == NULL || a->pData == NULL)
-        return HAL_ERROR;
-    if (a->Size == 0)
-        return HAL_OK; // nothing to receive
-    return HAL_UART_Receive(a->huart, a->pData, a->Size, a->Timeout);
-}
-
-static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
-{
-    if (a == NULL || a->hi2c == NULL)
-        return HAL_ERROR;
-    if ((a->TxSize > 0 && a->pTxData == NULL) ||
-        (a->RxSize > 0 && a->pRxData == NULL))
-        return HAL_ERROR;
-
-    HAL_StatusTypeDef ret = HAL_OK;
-    if (a->TxSize > 0)
-    {
-        ret = HAL_I2C_Master_Transmit(a->hi2c, a->DevAddress, a->pTxData, a->TxSize, a->Timeout);
-        if (ret != HAL_OK)
-            return ret;
-    }
-    if (a->RxSize > 0)
-    {
-        ret = HAL_I2C_Master_Receive(a->hi2c, a->DevAddress, a->pRxData, a->RxSize, a->Timeout);
-    }
     return ret;
 }
