@@ -349,6 +349,15 @@ extern "C"
 
     void PendSV_Restore(void)
     {
+        Thread *next = pick_next_thread();
+        if (!next || next == NULL)
+            return;
+
+        g_kernel.currentThread = next;
+        g_kernel.currentThread->state = THREAD_RUNNING;
+
+        Restore_Context(g_kernel.currentThread);
+        // Exception return will restore R0–R3, R12, LR, PC, xPSR from PSP.
     }
 }
 __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
