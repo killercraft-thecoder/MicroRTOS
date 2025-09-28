@@ -8,7 +8,7 @@
 // ---- Types ----
 typedef void (*TaskFunction_t)(void *);
 
-// Your kernel's Thread and priority map
+// The kernel's Thread and priority map
 typedef struct Thread Thread;
 
 typedef Thread* TaskHandle_t;
@@ -22,11 +22,8 @@ typedef int32_t  BaseType_t;
 #endif
 
 // ---- Kernel hooks it already has ----
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-void Start_Scheduler(void); // your kernel entry
+void Start_Scheduler(void); // The kernel entry
 void Yield(void);           // SVC-backed
 void Thread_Sleep(uint32_t ms); // SVC-backed
 
@@ -34,10 +31,6 @@ void Create_Thread(Thread *t, void (*entry)(void*), void *arg,
                    uint32_t *stack, uint32_t stackBytes, uint32_t priority);
 
 void Thread_Exit(void);
-
-#ifdef __cplusplus
-}
-#endif
 
 // ---- FreeRTOS-like API ----
 
@@ -52,9 +45,13 @@ static inline void vTaskStartScheduler(void) {
 #endif
 
 static inline void vTaskDelay(uint32_t ticks) {
+    #if configTICK_RATE_HZ == 1000u
+    Thread_Sleep(ticks);
+    #else
     // Convert scheduler ticks to ms. For 1 kHz, this is a no-op.
     uint32_t ms = (ticks * 1000u) / configTICK_RATE_HZ;
     Thread_Sleep(ms);
+    #endif
 }
 
 // taskYIELD -> Yield

@@ -59,5 +59,5 @@ static inline void osThreadExit(void) {
     Thread_Exit(0);
 }
 
-// Yield (optional)
+// Yield
 static inline void osThreadYield(void) { Yield(); }

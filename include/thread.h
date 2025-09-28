@@ -14,11 +14,12 @@
 #define THREAD_H
 
 #include <stdint.h>
-#include "stm32f4xx_hal_gpio.h"
-#include "stm32f4xx_hal_uart.h"
-#include "stm32f4xx_ll_hal.h"
-#include "stm32f4xx_hal_spi.h"
-#include "mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
+#include "../include/CMSIS/stm32f4xx_hal_gpio.h"
+#include "../include/CMSIS/stm32f4xx_hal_uart.h"
+#include "../include/CMSIS/stm32f4xx_hal.h"
+#include "../include/CMSIS/stm32f4xx_hal_spi.h"
+#include "../include/core_cm4.h"
+#include "../include/mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
 #define __atomic_read(src, dest) \
     do                           \
@@ -60,17 +61,13 @@ typedef uint32_t time_t;    // absolute time in ms since boot (1 tick = 1 ms)
 typedef int32_t duration_t; // signed interval in ms (end - start)
 
 // Scheduling & priorities
-typedef uint8_t priority_t; // thread priority level
+typedef int priority_t; // thread priority level
 typedef uint32_t tick_t;    // tick count
 
 // Flags & masks
 typedef uint32_t flag32_t; // 32-bit flags
 typedef uint64_t flag64_t; // 64-bit flags
 typedef uint16_t flag16_t; // 16-bit flags
-
-// Sizes & counts
-typedef uint32_t size_t;  // object sizes, buffer lengths
-typedef uint32_t count_t; // generic counter type
 
 // Error/status codes
 typedef int status_t; // return codes from threads/OS functions in the future.
@@ -231,17 +228,6 @@ void Scheduler_Tick(void);
  * @brief Exit Current Thread
  */
 void Thread_Exit(status_t code);
-
-/**
- * @brief Select the next thread to run.
- *
- * Implements the scheduling policy to
- * choose the next ready thread from the scheduler's ready list.
- *
- * @return Pointer to the Thread control block of the next thread to run,
- *         or NULL if no threads are ready.
- */
-thread_t *Scheduler_GetNextThread(void);
 
 /**
  * @brief Build the initial stack frame for a new thread.
@@ -471,5 +457,11 @@ time_t OS_GetTick(void);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
+
+// Here so that HAL can proplery get ticks.
+
+inline uint32_t HAL_GetTick() {
+    return OS_GetTick();
+}
 
 #endif // THREAD_H

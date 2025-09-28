@@ -1,16 +1,22 @@
 # Toolchain
 CC = arm-none-eabi-gcc
-LD = arm-none-eabi-ld
+CXX = arm-none-eabi-g++
 OBJCOPY = arm-none-eabi-objcopy
 
 # MCU flags
 MCU = cortex-m4
 CFLAGS = -mcpu=$(MCU) -mthumb -O2 -nostdlib -ffreestanding
+CXXFLAGS = $(CFLAGS)
 LDFLAGS = -TInclude/stm32f401.ld
 
+# Directorys
+BUILDDIR = build
+
 # Sources
-SRCS = $(wildcard *.c)
-OBJS = $(SRCS:.c=.o)
+CSRCS := $(wildcard Source/*.c) $(wildcard Include/CMSIS/*.c)
+CPPSRCS := $(wildcard Source/*.cpp)
+OBJS := $(addprefix $(BUILDDIR)/,$(notdir $(CSRCS:.c=.o))) \
+	$(addprefix $(BUILDDIR)/,$(notdir $(CPPSRCS:.cpp=.o)))
 
 # Output
 TARGET = firmware.elf
@@ -18,11 +24,26 @@ BIN = firmware.bin
 
 all: $(BIN)
 
+$(BUILDDIR):
+	mkdir -p $@
+
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 $(BIN): $(TARGET)
 	$(OBJCOPY) -O binary $< $@
 
+# Compile .c files
+$(BUILDDIR)/%.o: Source/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/%.o: Include/CMSIS/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile .cpp files
+$(BUILDDIR)/%.o: Source/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+
 clean:
-	rm -f *.o $(TARGET) $(BIN)
+	rm -f $(BUILDDIR)/*.o $(TARGET) $(BIN)

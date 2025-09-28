@@ -1,22 +1,22 @@
 {
     "configurations": [
-       
         {
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**\"",
+                "${workspaceFolder}/../include",
                 "${workspaceFolder}/include/**"
             ],
             "defines": [
                 "__VFP_FP__",
-                "USER_VECT_TAB_ADDRESS",
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
             "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
             "cStandard": "gnu23",
-            "cppStandard": "c++17"
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-arm"
         }
     ],
     "version": 4

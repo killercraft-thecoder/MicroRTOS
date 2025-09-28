@@ -160,6 +160,16 @@ typedef enum
 #include "system_stm32f4xx.h"
 #include <stdint.h>
 
+#define UID_BASE 0x1FFF7A10U  // STM32F401xE UID base address,  Newly Added.
+#define FLASH_CR_SNB_Pos 3 // Also New
+// Start of Larfgre New
+#define SPI_CR1_BR_Pos      (3U)
+#define SPI_CR1_BR_Msk      (0x7U << SPI_CR1_BR_Pos)
+
+#define SPI_CRCPR_CRCPOLY_Pos (0U)
+#define SPI_CRCPR_CRCPOLY_Msk (0xFFFFU << SPI_CRCPR_CRCPOLY_Pos)
+// End of Large New
+
 /** @addtogroup Peripheral_registers_structures
   * @{
   */   

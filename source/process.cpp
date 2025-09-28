@@ -1,14 +1,15 @@
 #include "../include/process.h"
-#include "thread.h"
-#include "mpu.h"
+#include "../include/CMSIS/thread.h"
+#include "../include/CMSIS/mpu.h"
 
 #include <stddef.h>
 #include <string.h>
+#include "../include/CMSIS/stm32f4xx_hal_def.h"
 
-// CMSIS core (pick the one for your target, cm3/cm4/cm7)
-#include "core_cm4.h"
-#include "cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
-#include "mpu_armv7.h"
+// CMSIS core
+#include "../include/CMSIS/core_cm4.h"
+#include "../include/CMSIS/cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
+#include "../include/CMSIS/mpu_armv7.h"
 
 // -----------------------------------------------------------------------------
 // Configuration

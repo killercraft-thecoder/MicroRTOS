@@ -64,6 +64,11 @@ SECTIONS
     __heap_end__ = .;
   } >RAM
 
+  .ramfunc :
+  {
+    KEEP(*(.ramfunc))
+  } >RAM
+
   /* Symbols for startup code */
   PROVIDE(_end = .);
   PROVIDE(__heap_base = __heap_start__);

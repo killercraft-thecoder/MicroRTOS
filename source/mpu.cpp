@@ -1,8 +1,8 @@
-#include "mpu.h"
-#include "core_cm4.h"  // or core_cm3.h / core_cm7.h depending on MCU
-#include "cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
-#include "include/process.h"
-#include "thread.h"
+#include "../include/mpu.h"
+#include "../include/CMSIS/core_cm4.h"  // or core_cm3.h / core_cm7.h depending on MCU
+#include "../include/CMSIS/cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
+#include "../include/process.h"
+#include "../include/thread.h"
 
 // ---- Internal helpers ----
 

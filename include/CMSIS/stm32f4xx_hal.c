@@ -516,6 +516,8 @@ void HAL_DBGMCU_DisableDBGStandbyMode(void)
   CLEAR_BIT(DBGMCU->CR, DBGMCU_CR_DBG_STANDBY);
 }
 
+#ifdef SYSCFG_CMPCR_CMP_PD_Pos // This block was not in the orginal , to prevent build errors.
+
 /**
   * @brief  Enables the I/O Compensation Cell.
   * @note   The I/O compensation cell can be used only when the device supply
@@ -537,6 +539,8 @@ void HAL_DisableCompensationCell(void)
 {
   *(__IO uint32_t *)CMPCR_CMP_PD_BB = (uint32_t)DISABLE;
 }
+
+#endif
 
 /**
   * @brief  Returns first word of the unique device identifier (UID based on 96 bits)

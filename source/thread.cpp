@@ -1,18 +1,16 @@
-#include "thread.h"
-#include "process.h" // for g_kernel
+#include "../include/thread.h"
+#include "../include/process.h" // for g_kernel
 #include <stddef.h>
 #include <stdint.h>
-#include "core_cm4.h" // or core_cm3.h / core_cm7.h
-#include "cmsis_gcc.h"
-#include "include/process.h"
-#include "mpu.h"
-#include "stm32f4xx_hal.h"
+#include "../include/mpu.h"
 
 #define MAX_THREADS 8
 #define TICK_HZ 1000U // 1 ms tick
 
 // Cortex-M initial xPSR value: Thumb bit set
 static const uint32_t INITIAL_XPSR = 0x01000000UL;
+
+extern "C" {
 
 // -----------------------------------------------------------------------------
 // Internal: Build initial stack frame for a new thread (PSP-based, unprivileged)
@@ -50,6 +48,8 @@ static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
     t->context.SP = (uint32_t)stackTop;
     t->context.LR = 0xFFFFFFFD;
     t->stack_base = (uint32_t)t->stackBase;
+}
+
 }
 
 // -----------------------------------------------------------------------------
@@ -137,7 +137,7 @@ static inline void Thread_Exit(status_t code)
 }
 
 static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                                 uint32_t *stack, uint32_t stackBytes, uint32_t priority)
+                                 uint32_t *stack, uint32_t stackBytes, priority_t priority)
 {
     register Thread *r0 __asm__("r0") = t;
     register void (*r1)(void *) __asm__("r1") = entry;
@@ -153,32 +153,6 @@ static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
           [stackBytes] "r"(stackBytes),
           [imm] "I"(SVC_CREATE_THREAD)
         : "memory");
-}
-
-inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                          uint32_t *stack, uint32_t stackBytes, uint8_t priority)
-{
-    if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS)
-    {
-        return;
-    }
-
-    t->stackBase = stack;
-    t->stackSize = stackBytes;
-    t->priority = priority;
-    t->usesFPU = 0;
-    t->state = THREAD_READY;
-    t->entry = entry;
-    t->arg = arg;
-    t->periodTicks = 10;
-    t->nextReleaseTick = g_kernel.systemTicks + t->periodTicks;
-
-    // Force unprivileged, PSP
-    t->control = 0x03; // nPRIV=1, SPSEL=1
-
-    Init_Thread_Stack(t, entry, arg);
-
-    g_kernel.threadList[g_kernel.threadCount++] = t;
 }
 
 static void Init_SysTick(void)
@@ -234,19 +208,6 @@ void Start_Scheduler(void)
     }
 }
 
-void Kernal_Yield(void)
-{
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
-
-void Kernel_Thread_Exit(status_t code)
-{
-    Thread *t = g_kernel.currentThread;
-    t->exit_code = code; // store for debugging
-    t->state = THREAD_TERMINATED;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger context switch
-}
-
 void Scheduler_Tick(void)
 {
     uint32_t now = g_kernel.systemTicks++; // increment global tick counter
@@ -289,54 +250,6 @@ void Scheduler_Tick(void)
     }
 }
 
-Thread *Scheduler_GetNextThread(void)
-{
-    if (g_kernel.threadCount == 0)
-    {
-        return NULL;
-    }
-
-    uint8_t highestPrio = 0;
-    int8_t bestIndex = -1;
-
-    // Find the highest-priority READY thread
-    for (uint8_t i = 0; i < g_kernel.threadCount; i++)
-    {
-        Thread *t = g_kernel.threadList[i];
-        if (t->state == THREAD_READY || t->state == THREAD_RUNNING)
-        {
-            if (bestIndex == -1 || t->priority > highestPrio)
-            {
-                highestPrio = t->priority;
-                bestIndex = i;
-            }
-        }
-    }
-
-    if (bestIndex < 0)
-    {
-        return NULL; // no runnable threads
-    }
-
-    // If multiple threads share the same highest priority, round-robin them
-    uint8_t startIndex = (uint8_t)((g_kernel.currentIndex + 1U) % g_kernel.threadCount);
-    for (uint8_t offset = 0; offset < g_kernel.threadCount; offset++)
-    {
-        uint8_t idx = (startIndex + offset) % g_kernel.threadCount;
-        Thread *t = g_kernel.threadList[idx];
-        if ((t->state == THREAD_READY || t->state == THREAD_RUNNING) &&
-            t->priority == highestPrio)
-        {
-            g_kernel.currentIndex = idx;
-            return t;
-        }
-    }
-
-    // Fallback: return the bestIndex found
-    g_kernel.currentIndex = (uint8_t)bestIndex;
-    return g_kernel.threadList[bestIndex];
-}
-
 // -----------------------------------------------------------------------------
 // PendSV context switch handler glue
 // -----------------------------------------------------------------------------
@@ -345,23 +258,36 @@ static inline Thread *pick_next_thread(void)
     return Scheduler_GetNextThread();
 }
 
-__attribute__((naked)) void PendSV_Handler(void)
-{
-    __asm volatile(
-        "mrs   r0, psp                 \n"
-        "cbz   r0, .Lfirst_switch      \n"
-        "push  {lr}                    \n"
-        "bl    PendSV_Save             \n"
-        "pop   {lr}                    \n"
-        ".Lfirst_switch:               \n"
-        "push  {lr}                    \n"
-        "bl    PendSV_Restore          \n"
-        "pop   {lr}                    \n"
-        "bx    lr                      \n");
-}
-
 extern "C"
 {
+
+    void Kernal_Yield(void)
+    {
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
+
+    void Kernel_Thread_Exit(status_t code)
+    {
+        Thread *t = g_kernel.currentThread;
+        t->exit_code = code; // store for debugging
+        t->state = THREAD_TERMINATED;
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger context switch
+    }
+
+    __attribute__((naked)) void PendSV_Handler(void)
+    {
+        __asm volatile(
+            "mrs   r0, psp                 \n"
+            "cbz   r0, .Lfirst_switch      \n"
+            "push  {lr}                    \n"
+            "bl    PendSV_Save             \n"
+            "pop   {lr}                    \n"
+            ".Lfirst_switch:               \n"
+            "push  {lr}                    \n"
+            "bl    PendSV_Restore          \n"
+            "pop   {lr}                    \n"
+            "bx    lr                      \n");
+    }
 
     void PendSV_Save(void)
     {
@@ -411,27 +337,39 @@ __attribute__((always_inline)) static inline time_t OS_GetTick(void)
     return result;
 }
 
-// Get the stacked frame depending on EXC_RETURN in LR
-static inline uint32_t *get_stacked_frame(uint32_t lr)
-{
-    // Bit 2 of EXC_RETURN (LR) = 0 => MSP used, 1 => PSP used
-    if (lr & 0x4U)
-    {
-        return (uint32_t *)__get_PSP();
-    }
-    else
-    {
-        return (uint32_t *)__get_MSP();
-    }
-}
-
-static inline uint32_t Kernel_GetTick(void)
-{
-    return g_kernal->systemTicks; // Read Out that data.
-}
-
 extern "C"
 {
+
+    static inline uint32_t Kernel_GetTick(void)
+    {
+        return g_kernal->systemTicks; // Read Out that data.
+    }
+
+    inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+                                     uint32_t *stack, uint32_t stackBytes, status_t priority)
+    {
+        if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS)
+        {
+            return;
+        }
+
+        t->stackBase = stack;
+        t->stackSize = stackBytes;
+        t->priority = priority;
+        t->usesFPU = 0;
+        t->state = THREAD_READY;
+        t->entry = entry;
+        t->arg = arg;
+        t->periodTicks = 10;
+        t->nextReleaseTick = g_kernel.systemTicks + t->periodTicks;
+
+        // Force unprivileged, PSP
+        t->control = 0x03; // nPRIV=1, SPSEL=1
+
+        Init_Thread_Stack(t, entry, arg);
+
+        g_kernel.threadList[g_kernel.threadCount++] = t;
+    }
 
     static void enable_uart_clock(USART_TypeDef *i)
     {
