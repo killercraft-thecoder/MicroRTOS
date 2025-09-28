@@ -224,6 +224,22 @@ void Yield(void);
  */
 void Scheduler_Tick(void);
 
+
+extern "C" {
+    
+/**
+ * @brief Select the next thread to run.
+ *
+ * Implements the scheduling policy to
+ * choose the next ready thread from the scheduler's ready list.
+ *
+ * @return Pointer to the Thread control block of the next thread to run,
+ *         or NULL if no threads are ready.
+ */
+thread_t *Scheduler_GetNextThread(void);
+
+}
+
 /**
  * @brief Exit Current Thread
  */

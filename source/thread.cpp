@@ -10,46 +10,46 @@
 // Cortex-M initial xPSR value: Thumb bit set
 static const uint32_t INITIAL_XPSR = 0x01000000UL;
 
-extern "C" {
-
-// -----------------------------------------------------------------------------
-// Internal: Build initial stack frame for a new thread (PSP-based, unprivileged)
-// -----------------------------------------------------------------------------
-static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
+extern "C"
 {
-    uint32_t *stackTop = (uint32_t *)(((uintptr_t)t->stackBase + t->stackSize) & ~0x7);
 
-    // Hardware-stacked frame: R0-R3, R12, LR, PC, xPSR
-    stackTop -= 8;
-    stackTop[0] = (uint32_t)arg;   // R0
-    stackTop[1] = 0x01010101;      // R1
-    stackTop[2] = 0x02020202;      // R2
-    stackTop[3] = 0x03030303;      // R3
-    stackTop[4] = 0x12121212;      // R12
-    stackTop[5] = 0xFFFFFFFD;      // LR = EXC_RETURN: return to Thread mode, use PSP
-    stackTop[6] = (uint32_t)entry; // PC
-    stackTop[7] = INITIAL_XPSR;    // xPSR (T-bit set)
-
-    // Software-saved R4-R11
-    stackTop -= 8;
-    for (int i = 0; i < 8; i++)
+    // -----------------------------------------------------------------------------
+    // Internal: Build initial stack frame for a new thread (PSP-based, unprivileged)
+    // -----------------------------------------------------------------------------
+    static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
     {
-        stackTop[i] = 0;
+        uint32_t *stackTop = (uint32_t *)(((uintptr_t)t->stackBase + t->stackSize) & ~0x7);
+
+        // Hardware-stacked frame: R0-R3, R12, LR, PC, xPSR
+        stackTop -= 8;
+        stackTop[0] = (uint32_t)arg;   // R0
+        stackTop[1] = 0x01010101;      // R1
+        stackTop[2] = 0x02020202;      // R2
+        stackTop[3] = 0x03030303;      // R3
+        stackTop[4] = 0x12121212;      // R12
+        stackTop[5] = 0xFFFFFFFD;      // LR = EXC_RETURN: return to Thread mode, use PSP
+        stackTop[6] = (uint32_t)entry; // PC
+        stackTop[7] = INITIAL_XPSR;    // xPSR (T-bit set)
+
+        // Software-saved R4-R11
+        stackTop -= 8;
+        for (int i = 0; i < 8; i++)
+        {
+            stackTop[i] = 0;
+        }
+
+        t->psp = stackTop;
+
+        // bookkeeping
+        t->context.R0 = (uint32_t)arg;
+        t->context.R1 = 0x01010101;
+        t->context.R2 = 0x02020202;
+        t->context.R3 = 0x03030303;
+        t->context.R12 = 0x12121212;
+        t->context.SP = (uint32_t)stackTop;
+        t->context.LR = 0xFFFFFFFD;
+        t->stack_base = (uint32_t)t->stackBase;
     }
-
-    t->psp = stackTop;
-
-    // bookkeeping
-    t->context.R0 = (uint32_t)arg;
-    t->context.R1 = 0x01010101;
-    t->context.R2 = 0x02020202;
-    t->context.R3 = 0x03030303;
-    t->context.R12 = 0x12121212;
-    t->context.SP = (uint32_t)stackTop;
-    t->context.LR = 0xFFFFFFFD;
-    t->stack_base = (uint32_t)t->stackBase;
-}
-
 }
 
 // -----------------------------------------------------------------------------
@@ -208,58 +208,107 @@ void Start_Scheduler(void)
     }
 }
 
-void Scheduler_Tick(void)
-{
-    uint32_t now = g_kernel.systemTicks++; // increment global tick counter
-
-    for (uint8_t i = 0; i < g_kernel.threadCount; i++)
-    {
-        Thread *t = g_kernel.threadList[i];
-
-        // Periodic releases (BLOCKED + period)
-        if (t->state == THREAD_BLOCKED && t->periodTicks > 0)
-        {
-            if (now >= t->nextReleaseTick)
-            {
-                t->state = THREAD_READY;
-                t->nextReleaseTick = now + t->periodTicks;
-            }
-        }
-
-        // Sleep wakeups
-        if (t->state == THREAD_SLEEPING)
-        {
-            if ((int32_t)(g_kernel.systemTicks - t->nextReleaseTick) >= 0)
-            {
-                t->state = THREAD_READY;
-            }
-        }
-    }
-
-    // Quantum countdown for current thread
-    if (g_kernel.currentThread)
-    {
-        if (g_kernel.currentThread->timeSliceRemaining > 0)
-        {
-            g_kernel.currentThread->timeSliceRemaining--;
-        }
-        if (g_kernel.currentThread->timeSliceRemaining == 0)
-        {
-            SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// PendSV context switch handler glue
-// -----------------------------------------------------------------------------
-static inline Thread *pick_next_thread(void)
-{
-    return Scheduler_GetNextThread();
-}
-
 extern "C"
 {
+
+    // -----------------------------------------------------------------------------
+    // PendSV context switch handler glue
+    // -----------------------------------------------------------------------------
+    static inline Thread *pick_next_thread(void)
+    {
+        return Scheduler_GetNextThread();
+    }
+
+    Thread *Scheduler_GetNextThread(void)
+
+    {
+        if (g_kernel.threadCount == 0)
+        {
+            return NULL;
+        }
+
+        uint8_t highestPrio = 0;
+        int8_t bestIndex = -1;
+
+        // Find the highest-priority READY thread
+        for (uint8_t i = 0; i < g_kernel.threadCount; i++)
+        {
+            Thread *t = g_kernel.threadList[i];
+            if (t->state == THREAD_READY || t->state == THREAD_RUNNING)
+            {
+                if (bestIndex == -1 || t->priority > highestPrio)
+                {
+                    highestPrio = t->priority;
+                    bestIndex = i;
+                }
+            }
+        }
+
+        if (bestIndex < 0)
+        {
+            return NULL; // no runnable threads
+        }
+
+        // If multiple threads share the same highest priority, round-robin them
+        uint8_t startIndex = (uint8_t)((g_kernel.currentIndex + 1U) % g_kernel.threadCount);
+        for (uint8_t offset = 0; offset < g_kernel.threadCount; offset++)
+        {
+            uint8_t idx = (startIndex + offset) % g_kernel.threadCount;
+            Thread *t = g_kernel.threadList[idx];
+            if ((t->state == THREAD_READY || t->state == THREAD_RUNNING) &&
+                t->priority == highestPrio)
+            {
+                g_kernel.currentIndex = idx;
+                return t;
+            }
+        }
+
+        // Fallback: return the bestIndex found
+        g_kernel.currentIndex = (uint8_t)bestIndex;
+        return g_kernel.threadList[bestIndex];
+    }
+
+    void Scheduler_Tick(void)
+    {
+        uint32_t g_kernal->ticks = g_kernel.systemTicks++; // increment global tick counter
+
+        for (uint8_t i = 0; i < g_kernel.threadCount; i++)
+        {
+            Thread *t = g_kernel.threadList[i];
+
+            // Periodic releases (BLOCKED + period)
+            if (t->state == THREAD_BLOCKED && t->periodTicks > 0)
+            {
+                if (g_kernal->systemTicks >= t->nextReleaseTick)
+                {
+                    t->state = THREAD_READY;
+                    t->nextReleaseTick = g_kernal->ticks + t->periodTicks;
+                }
+            }
+
+            // Sleep wakeups
+            if (t->state == THREAD_SLEEPING)
+            {
+                if ((int32_t)(g_kernel->systemTicks - t->nextReleaseTick) >= 0)
+                {
+                    t->state = THREAD_READY;
+                }
+            }
+        }
+
+        // Quantum countdown for current thread
+        if (g_kernel.currentThread)
+        {
+            if (g_kernel.currentThread->timeSliceRemaining > 0)
+            {
+                g_kernel.currentThread->timeSliceRemaining--;
+            }
+            if (g_kernel.currentThread->timeSliceRemaining == 0)
+            {
+                SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+            }
+        }
+    }
 
     void Kernal_Yield(void)
     {
@@ -300,15 +349,6 @@ extern "C"
 
     void PendSV_Restore(void)
     {
-        Thread *next = pick_next_thread();
-        if (!next || next == NULL)
-            return;
-
-        g_kernel.currentThread = next;
-        g_kernel.currentThread->state = THREAD_RUNNING;
-
-        Restore_Context(g_kernel.currentThread);
-        // Exception return will restore R0–R3, R12, LR, PC, xPSR from PSP.
     }
 }
 __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
