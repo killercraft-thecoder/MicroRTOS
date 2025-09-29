@@ -5,7 +5,8 @@
         "cstdint": "cpp",
         "stm32f4xx_hal.h": "c",
         "stm32f401xe.h": "c",
-        "stm32f4xx_hal_uart.h": "c"
+        "stm32f4xx_hal_uart.h": "c",
+        "stm32f4xx_hal_def.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

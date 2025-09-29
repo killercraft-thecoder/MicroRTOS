@@ -1,3 +1,4 @@
+#include "../include/CMSIS/stm32f4xx_hal.h"
 #include "../include/thread.h"
 #include <stdint.h>
 

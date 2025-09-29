@@ -2694,7 +2694,7 @@ void HAL_RCCEx_GetPeriphCLKConfig(RCC_PeriphCLKInitTypeDef  *PeriphClkInit)
   tempreg = (RCC->CFGR & RCC_CFGR_RTCPRE);
   PeriphClkInit->RTCClockSelection = (uint32_t)((tempreg) | (RCC->BDCR & RCC_BDCR_RTCSEL));
 
-#if defined(STM32F401xC) || defined(STM32F401xE) || defined(STM32F411xE)
+#if defined(STM32F401xC)
   /* Get the TIM Prescaler configuration -------------------------------------*/
   if ((RCC->DCKCFGR & RCC_DCKCFGR_TIMPRE) == RESET)
   {

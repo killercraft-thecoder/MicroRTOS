@@ -1,0 +1,1087 @@
+arm-none-eabi-g++ -mcpu=cortex-m4 -mthumb -O2 -nostdlib -ffreestanding -c Source/mpu.cpp -o build/mpu.o
+In file included from Source/mpu.cpp:4:
+Source/../include/process.h:7: warning: "__FPU_PRESENT" redefined
+    7 | #define __FPU_PRESENT 1U
+      | 
+In file included from Source/../include/../include/CMSIS/stm32f4xx.h:146,
+                 from Source/../include/../include/CMSIS/stm32f4xx_hal_def.h:29,
+                 from Source/../include/../include/CMSIS/stm32f4xx_hal_gpio.h:28,
+                 from Source/../include/thread.h:17,
+                 from Source/../include/process.h:5:
+Source/../include/../include/CMSIS/stm32f401xe.h:71: note: this is the location of the previous definition
+   71 | #define __FPU_PRESENT             1       /*!< FPU present                                   */
+      | 
+In file included from Source/mpu.cpp:1:
+Source/../include/CMSIS/mpu_armv7.h:184:3: error: 'uint32_t' does not name a type
+  184 |   uint32_t RBAR; //!< The region base address register value (RBAR)
+      |   ^~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:1:1: note: 'uint32_t' is defined in header '<cstdint>'; did you forget to '#include <cstdint>'?
+  +++ |+#include <cstdint>
+    1 | /******************************************************************************
+Source/../include/CMSIS/mpu_armv7.h:185:3: error: 'uint32_t' does not name a type
+  185 |   uint32_t RASR; //!< The region attribute and size register value (RASR) \ref MPU_RASR
+      |   ^~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:185:3: note: 'uint32_t' is defined in header '<cstdint>'; did you forget to '#include <cstdint>'?
+Source/../include/CMSIS/mpu_armv7.h:191:1: error: '__STATIC_INLINE' does not name a type
+  191 | __STATIC_INLINE void ARM_MPU_Enable(uint32_t MPU_Control)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:204:1: error: '__STATIC_INLINE' does not name a type
+  204 | __STATIC_INLINE void ARM_MPU_Disable(void)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:218:1: error: '__STATIC_INLINE' does not name a type
+  218 | __STATIC_INLINE void ARM_MPU_ClrRegion(uint32_t rnr)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:228:1: error: '__STATIC_INLINE' does not name a type
+  228 | __STATIC_INLINE void ARM_MPU_SetRegion(uint32_t rbar, uint32_t rasr)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:239:1: error: '__STATIC_INLINE' does not name a type
+  239 | __STATIC_INLINE void ARM_MPU_SetRegionEx(uint32_t rnr, uint32_t rbar, uint32_t rasr)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:251:1: error: '__STATIC_INLINE' does not name a type
+  251 | __STATIC_INLINE void ARM_MPU_OrderedMemcpy(volatile uint32_t *dst, const uint32_t *__RESTRICT src, uint32_t len)
+      | ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/mpu_armv7.h:264:1: error: '__STATIC_INLINE' does not name a type
+  264 | __STATIC_INLINE void ARM_MPU_Load(ARM_MPU_Region_t const *table, uint32_t cnt)
+      | ^~~~~~~~~~~~~~~
+In file included from Source/../include/CMSIS/core_cmInstr.h:61,
+                 from Source/../include/CMSIS/core_cm4.h:210,
+                 from Source/mpu.cpp:2:
+Source/../include/CMSIS/cmsis_gcc.h: In function 'uint32_t __get_PSP()':
+Source/../include/CMSIS/cmsis_gcc.h:150:21: warning: ISO C++17 does not allow 'register' storage class specifier [-Wregister]
+  150 |   register uint32_t result;
+      |                     ^~~~~~
+Source/../include/CMSIS/cmsis_gcc.h: In function 'uint32_t __get_MSP()':
+Source/../include/CMSIS/cmsis_gcc.h:175:21: warning: ISO C++17 does not allow 'register' storage class specifier [-Wregister]
+  175 |   register uint32_t result;
+      |                     ^~~~~~
+Source/../include/CMSIS/core_cm4.h: At global scope:
+Source/../include/CMSIS/core_cm4.h:1626:22: error: variable or field 'NVIC_EnableIRQ' declared void
+ 1626 | __STATIC_INLINE void NVIC_EnableIRQ(IRQn_Type IRQn)
+      |                      ^~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1626:37: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1626 | __STATIC_INLINE void NVIC_EnableIRQ(IRQn_Type IRQn)
+      |                                     ^~~~~~~~~
+      |                                     ITM_Type
+Source/../include/CMSIS/core_cm4.h:1637:22: error: variable or field 'NVIC_DisableIRQ' declared void
+ 1637 | __STATIC_INLINE void NVIC_DisableIRQ(IRQn_Type IRQn)
+      |                      ^~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1637:38: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1637 | __STATIC_INLINE void NVIC_DisableIRQ(IRQn_Type IRQn)
+      |                                      ^~~~~~~~~
+      |                                      ITM_Type
+Source/../include/CMSIS/core_cm4.h:1650:45: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1650 | __STATIC_INLINE uint32_t NVIC_GetPendingIRQ(IRQn_Type IRQn)
+      |                                             ^~~~~~~~~
+      |                                             ITM_Type
+Source/../include/CMSIS/core_cm4.h:1661:22: error: variable or field 'NVIC_SetPendingIRQ' declared void
+ 1661 | __STATIC_INLINE void NVIC_SetPendingIRQ(IRQn_Type IRQn)
+      |                      ^~~~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1661:41: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1661 | __STATIC_INLINE void NVIC_SetPendingIRQ(IRQn_Type IRQn)
+      |                                         ^~~~~~~~~
+      |                                         ITM_Type
+Source/../include/CMSIS/core_cm4.h:1672:22: error: variable or field 'NVIC_ClearPendingIRQ' declared void
+ 1672 | __STATIC_INLINE void NVIC_ClearPendingIRQ(IRQn_Type IRQn)
+      |                      ^~~~~~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1672:43: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1672 | __STATIC_INLINE void NVIC_ClearPendingIRQ(IRQn_Type IRQn)
+      |                                           ^~~~~~~~~
+      |                                           ITM_Type
+Source/../include/CMSIS/core_cm4.h:1685:41: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1685 | __STATIC_INLINE uint32_t NVIC_GetActive(IRQn_Type IRQn)
+      |                                         ^~~~~~~~~
+      |                                         ITM_Type
+Source/../include/CMSIS/core_cm4.h:1698:22: error: variable or field 'NVIC_SetPriority' declared void
+ 1698 | __STATIC_INLINE void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
+      |                      ^~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1698:39: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1698 | __STATIC_INLINE void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
+      |                                       ^~~~~~~~~
+      |                                       ITM_Type
+Source/../include/CMSIS/core_cm4.h:1698:64: error: expected primary-expression before 'priority'
+ 1698 | __STATIC_INLINE void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority)
+      |                                                                ^~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1720:43: error: 'IRQn_Type' was not declared in this scope; did you mean 'ITM_Type'?
+ 1720 | __STATIC_INLINE uint32_t NVIC_GetPriority(IRQn_Type IRQn)
+      |                                           ^~~~~~~~~
+      |                                           ITM_Type
+Source/../include/CMSIS/core_cm4.h: In function 'uint32_t NVIC_EncodePriority(uint32_t, uint32_t, uint32_t)':
+Source/../include/CMSIS/core_cm4.h:1751:64: error: '__NVIC_PRIO_BITS' was not declared in this scope
+ 1751 |   PreemptPriorityBits = ((7UL - PriorityGroupTmp) > (uint32_t)(__NVIC_PRIO_BITS)) ? (uint32_t)(__NVIC_PRIO_BITS) : (uint32_t)(7UL - PriorityGroupTmp);
+      |                                                                ^~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h: In function 'void NVIC_DecodePriority(uint32_t, uint32_t, uint32_t*, uint32_t*)':
+Source/../include/CMSIS/core_cm4.h:1778:64: error: '__NVIC_PRIO_BITS' was not declared in this scope
+ 1778 |   PreemptPriorityBits = ((7UL - PriorityGroupTmp) > (uint32_t)(__NVIC_PRIO_BITS)) ? (uint32_t)(__NVIC_PRIO_BITS) : (uint32_t)(7UL - PriorityGroupTmp);
+      |                                                                ^~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h: In function 'uint32_t SysTick_Config(uint32_t)':
+Source/../include/CMSIS/core_cm4.h:1838:21: error: 'SysTick_IRQn' was not declared in this scope; did you mean 'SysTick_Type'?
+ 1838 |   NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
+      |                     ^~~~~~~~~~~~
+      |                     SysTick_Type
+Source/../include/CMSIS/core_cm4.h:1838:43: error: '__NVIC_PRIO_BITS' was not declared in this scope
+ 1838 |   NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
+      |                                           ^~~~~~~~~~~~~~~~
+Source/../include/CMSIS/core_cm4.h:1838:3: error: 'NVIC_SetPriority' was not declared in this scope; did you mean 'NVIC_GetPriority'?
+ 1838 |   NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
+      |   ^~~~~~~~~~~~~~~~
+      |   NVIC_GetPriority
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_rcc.h:31,
+                 from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:281,
+                 from Source/../include/../include/CMSIS/stm32f4xx_hal.h:29,
+                 from Source/../include/../include/CMSIS/stm32f4xx.h:287:
+Source/../include/../include/CMSIS/stm32f4xx_hal_rcc_ex.h: At global scope:
+Source/../include/../include/CMSIS/stm32f4xx_hal_rcc_ex.h:6806:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 6806 | HAL_StatusTypeDef HAL_RCCEx_PeriphCLKConfig(RCC_PeriphCLKInitTypeDef  *PeriphClkInit);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_rcc.h:1244:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1244 | HAL_StatusTypeDef HAL_RCC_DeInit(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_rcc.h:1245:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1245 | HAL_StatusTypeDef HAL_RCC_OscConfig(const RCC_OscInitTypeDef *RCC_OscInitStruct);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_rcc.h:1246:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1246 | HAL_StatusTypeDef HAL_RCC_ClockConfig(const RCC_ClkInitTypeDef *RCC_ClkInitStruct, uint32_t FLatency);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:293:
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:144:3: error: 'HAL_LockTypeDef' does not name a type
+  144 |   HAL_LockTypeDef            Lock;                                                             /*!< DMA locking object                     */
+      |   ^~~~~~~~~~~~~~~
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:639:
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma_ex.h:69:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+   69 | HAL_StatusTypeDef HAL_DMAEx_MultiBufferStart(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress, uint32_t SecondMemAddress, uint32_t DataLength);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma_ex.h:70:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+   70 | HAL_StatusTypeDef HAL_DMAEx_MultiBufferStart_IT(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress, uint32_t SecondMemAddress, uint32_t DataLength);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma_ex.h:71:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+   71 | HAL_StatusTypeDef HAL_DMAEx_ChangeMemory(DMA_HandleTypeDef *hdma, uint32_t Address, HAL_DMA_MemoryTypeDef memory);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:652:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  652 | HAL_StatusTypeDef HAL_DMA_Init(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:653:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  653 | HAL_StatusTypeDef HAL_DMA_DeInit(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:662:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  662 | HAL_StatusTypeDef HAL_DMA_Start (DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress, uint32_t DataLength);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:663:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  663 | HAL_StatusTypeDef HAL_DMA_Start_IT(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress, uint32_t DataLength);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:664:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  664 | HAL_StatusTypeDef HAL_DMA_Abort(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:665:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  665 | HAL_StatusTypeDef HAL_DMA_Abort_IT(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:666:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  666 | HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_LevelCompleteTypeDef CompleteLevel, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:668:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  668 | HAL_StatusTypeDef HAL_DMA_CleanCallbacks(DMA_HandleTypeDef *hdma);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:669:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  669 | HAL_StatusTypeDef HAL_DMA_RegisterCallback(DMA_HandleTypeDef *hdma, HAL_DMA_CallbackIDTypeDef CallbackID, void (* pCallback)(DMA_HandleTypeDef *_hdma));
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_dma.h:670:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  670 | HAL_StatusTypeDef HAL_DMA_UnRegisterCallback(DMA_HandleTypeDef *hdma, HAL_DMA_CallbackIDTypeDef CallbackID);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:341:
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:70:3: error: 'HAL_LockTypeDef' does not name a type
+   70 |   HAL_LockTypeDef             Lock;               /* FLASH locking object                */
+      |   ^~~~~~~~~~~~~~~
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:295:
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:725:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  725 | HAL_StatusTypeDef HAL_FLASHEx_Erase(FLASH_EraseInitTypeDef *pEraseInit, uint32_t *SectorError);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:726:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  726 | HAL_StatusTypeDef HAL_FLASHEx_Erase_IT(FLASH_EraseInitTypeDef *pEraseInit);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:727:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  727 | HAL_StatusTypeDef HAL_FLASHEx_OBProgram(FLASH_OBProgramInitTypeDef *pOBInit);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:735:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  735 | HAL_StatusTypeDef HAL_FLASHEx_AdvOBProgram(FLASH_AdvOBProgramInitTypeDef *pAdvOBInit);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:737:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  737 | HAL_StatusTypeDef HAL_FLASHEx_OB_SelectPCROP(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash_ex.h:738:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  738 | HAL_StatusTypeDef HAL_FLASHEx_OB_DeSelectPCROP(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:306:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  306 | HAL_StatusTypeDef HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:307:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  307 | HAL_StatusTypeDef HAL_FLASH_Program_IT(uint32_t TypeProgram, uint32_t Address, uint64_t Data);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:321:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  321 | HAL_StatusTypeDef HAL_FLASH_Unlock(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:322:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  322 | HAL_StatusTypeDef HAL_FLASH_Lock(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:323:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  323 | HAL_StatusTypeDef HAL_FLASH_OB_Unlock(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:324:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  324 | HAL_StatusTypeDef HAL_FLASH_OB_Lock(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:326:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  326 | HAL_StatusTypeDef HAL_FLASH_OB_Launch(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_flash.h:336:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  336 | HAL_StatusTypeDef FLASH_WaitForLastOperation(uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:369:
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:209:3: error: 'HAL_LockTypeDef' does not name a type
+  209 |   HAL_LockTypeDef            Lock;           /*!< I2C locking object                       */
+      |   ^~~~~~~~~~~~~~~
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:533:
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c_ex.h:68:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+   68 | HAL_StatusTypeDef HAL_I2CEx_ConfigAnalogFilter(I2C_HandleTypeDef *hi2c, uint32_t AnalogFilter);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c_ex.h:69:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+   69 | HAL_StatusTypeDef HAL_I2CEx_ConfigDigitalFilter(I2C_HandleTypeDef *hi2c, uint32_t DigitalFilter);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:544:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  544 | HAL_StatusTypeDef HAL_I2C_Init(I2C_HandleTypeDef *hi2c);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:545:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  545 | HAL_StatusTypeDef HAL_I2C_DeInit(I2C_HandleTypeDef *hi2c);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:566:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  566 | HAL_StatusTypeDef HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:567:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  567 | HAL_StatusTypeDef HAL_I2C_Master_Receive(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:568:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  568 | HAL_StatusTypeDef HAL_I2C_Slave_Transmit(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:569:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  569 | HAL_StatusTypeDef HAL_I2C_Slave_Receive(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:570:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  570 | HAL_StatusTypeDef HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:571:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  571 | HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:572:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  572 | HAL_StatusTypeDef HAL_I2C_IsDeviceReady(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint32_t Trials, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:575:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  575 | HAL_StatusTypeDef HAL_I2C_Master_Transmit_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:576:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  576 | HAL_StatusTypeDef HAL_I2C_Master_Receive_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:577:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  577 | HAL_StatusTypeDef HAL_I2C_Slave_Transmit_IT(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:578:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  578 | HAL_StatusTypeDef HAL_I2C_Slave_Receive_IT(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:579:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  579 | HAL_StatusTypeDef HAL_I2C_Mem_Write_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:580:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  580 | HAL_StatusTypeDef HAL_I2C_Mem_Read_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:582:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  582 | HAL_StatusTypeDef HAL_I2C_Master_Seq_Transmit_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:583:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  583 | HAL_StatusTypeDef HAL_I2C_Master_Seq_Receive_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:584:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  584 | HAL_StatusTypeDef HAL_I2C_Slave_Seq_Transmit_IT(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:585:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  585 | HAL_StatusTypeDef HAL_I2C_Slave_Seq_Receive_IT(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:586:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  586 | HAL_StatusTypeDef HAL_I2C_EnableListen_IT(I2C_HandleTypeDef *hi2c);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:587:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  587 | HAL_StatusTypeDef HAL_I2C_DisableListen_IT(I2C_HandleTypeDef *hi2c);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:588:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  588 | HAL_StatusTypeDef HAL_I2C_Master_Abort_IT(I2C_HandleTypeDef *hi2c, uint16_t DevAddress);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:591:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  591 | HAL_StatusTypeDef HAL_I2C_Master_Transmit_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:592:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  592 | HAL_StatusTypeDef HAL_I2C_Master_Receive_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:593:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  593 | HAL_StatusTypeDef HAL_I2C_Slave_Transmit_DMA(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:594:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  594 | HAL_StatusTypeDef HAL_I2C_Slave_Receive_DMA(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:595:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  595 | HAL_StatusTypeDef HAL_I2C_Mem_Write_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:596:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  596 | HAL_StatusTypeDef HAL_I2C_Mem_Read_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress, uint16_t MemAddSize, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:598:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  598 | HAL_StatusTypeDef HAL_I2C_Master_Seq_Transmit_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:599:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  599 | HAL_StatusTypeDef HAL_I2C_Master_Seq_Receive_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:600:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  600 | HAL_StatusTypeDef HAL_I2C_Slave_Seq_Transmit_DMA(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_i2c.h:601:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  601 | HAL_StatusTypeDef HAL_I2C_Slave_Seq_Receive_DMA(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size, uint32_t XferOptions);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:409:
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:130:3: error: 'HAL_LockTypeDef' does not name a type
+  130 |   HAL_LockTypeDef            Lock;           /*!< Locking object                           */
+      |   ^~~~~~~~~~~~~~~
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:655:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  655 | HAL_StatusTypeDef HAL_SPI_Init(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:656:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  656 | HAL_StatusTypeDef HAL_SPI_DeInit(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:674:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  674 | HAL_StatusTypeDef HAL_SPI_Transmit(SPI_HandleTypeDef *hspi, const uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:675:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  675 | HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:676:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  676 | HAL_StatusTypeDef HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi, const uint8_t *pTxData, uint8_t *pRxData,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:678:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  678 | HAL_StatusTypeDef HAL_SPI_Transmit_IT(SPI_HandleTypeDef *hspi, const uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:679:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  679 | HAL_StatusTypeDef HAL_SPI_Receive_IT(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:680:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  680 | HAL_StatusTypeDef HAL_SPI_TransmitReceive_IT(SPI_HandleTypeDef *hspi, const uint8_t *pTxData, uint8_t *pRxData,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:682:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  682 | HAL_StatusTypeDef HAL_SPI_Transmit_DMA(SPI_HandleTypeDef *hspi, const uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:683:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  683 | HAL_StatusTypeDef HAL_SPI_Receive_DMA(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:684:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  684 | HAL_StatusTypeDef HAL_SPI_TransmitReceive_DMA(SPI_HandleTypeDef *hspi, const uint8_t *pTxData, uint8_t *pRxData,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:686:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  686 | HAL_StatusTypeDef HAL_SPI_DMAPause(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:687:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  687 | HAL_StatusTypeDef HAL_SPI_DMAResume(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:688:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  688 | HAL_StatusTypeDef HAL_SPI_DMAStop(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:690:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  690 | HAL_StatusTypeDef HAL_SPI_Abort(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_spi.h:691:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  691 | HAL_StatusTypeDef HAL_SPI_Abort_IT(SPI_HandleTypeDef *hspi);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:413:
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:345:5: error: 'HAL_LockTypeDef' does not name a type
+  345 |     HAL_LockTypeDef Lock;                              /*!< Locking object                                    */
+      |     ^~~~~~~~~~~~~~~
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1900:
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:209:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  209 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Init(TIM_HandleTypeDef *htim, const TIM_HallSensor_InitTypeDef *sConfig);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:210:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  210 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_DeInit(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:216:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  216 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Start(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:217:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  217 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Stop(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:219:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  219 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Start_IT(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:220:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  220 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Stop_IT(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:222:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  222 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Start_DMA(TIM_HandleTypeDef *htim, uint32_t *pData, uint16_t Length);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:223:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  223 | HAL_StatusTypeDef HAL_TIMEx_HallSensor_Stop_DMA(TIM_HandleTypeDef *htim);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:234:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  234 | HAL_StatusTypeDef HAL_TIMEx_OCN_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:235:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  235 | HAL_StatusTypeDef HAL_TIMEx_OCN_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:238:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  238 | HAL_StatusTypeDef HAL_TIMEx_OCN_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:239:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  239 | HAL_StatusTypeDef HAL_TIMEx_OCN_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:242:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  242 | HAL_StatusTypeDef HAL_TIMEx_OCN_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, const uint32_t *pData,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:244:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  244 | HAL_StatusTypeDef HAL_TIMEx_OCN_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:255:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  255 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:256:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  256 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:259:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  259 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:260:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  260 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:262:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  262 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, const uint32_t *pData,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:264:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  264 | HAL_StatusTypeDef HAL_TIMEx_PWMN_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:275:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  275 | HAL_StatusTypeDef HAL_TIMEx_OnePulseN_Start(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:276:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  276 | HAL_StatusTypeDef HAL_TIMEx_OnePulseN_Stop(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:279:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  279 | HAL_StatusTypeDef HAL_TIMEx_OnePulseN_Start_IT(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:280:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  280 | HAL_StatusTypeDef HAL_TIMEx_OnePulseN_Stop_IT(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:290:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  290 | HAL_StatusTypeDef HAL_TIMEx_ConfigCommutEvent(TIM_HandleTypeDef *htim, uint32_t  InputTrigger,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:292:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  292 | HAL_StatusTypeDef HAL_TIMEx_ConfigCommutEvent_IT(TIM_HandleTypeDef *htim, uint32_t  InputTrigger,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:294:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  294 | HAL_StatusTypeDef HAL_TIMEx_ConfigCommutEvent_DMA(TIM_HandleTypeDef *htim, uint32_t  InputTrigger,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:296:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  296 | HAL_StatusTypeDef HAL_TIMEx_MasterConfigSynchronization(TIM_HandleTypeDef *htim,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:298:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  298 | HAL_StatusTypeDef HAL_TIMEx_ConfigBreakDeadTime(TIM_HandleTypeDef *htim,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim_ex.h:300:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  300 | HAL_StatusTypeDef HAL_TIMEx_RemapConfig(TIM_HandleTypeDef *htim, uint32_t Remap);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1912:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1912 |   HAL_StatusTypeDef HAL_TIM_Base_Init(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1913:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1913 |   HAL_StatusTypeDef HAL_TIM_Base_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1917:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1917 |   HAL_StatusTypeDef HAL_TIM_Base_Start(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1918:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1918 |   HAL_StatusTypeDef HAL_TIM_Base_Stop(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1920:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1920 |   HAL_StatusTypeDef HAL_TIM_Base_Start_IT(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1921:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1921 |   HAL_StatusTypeDef HAL_TIM_Base_Stop_IT(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1923:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1923 |   HAL_StatusTypeDef HAL_TIM_Base_Start_DMA(TIM_HandleTypeDef *htim, const uint32_t *pData, uint16_t Length);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1924:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1924 |   HAL_StatusTypeDef HAL_TIM_Base_Stop_DMA(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1934:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1934 |   HAL_StatusTypeDef HAL_TIM_OC_Init(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1935:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1935 |   HAL_StatusTypeDef HAL_TIM_OC_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1939:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1939 |   HAL_StatusTypeDef HAL_TIM_OC_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1940:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1940 |   HAL_StatusTypeDef HAL_TIM_OC_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1942:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1942 |   HAL_StatusTypeDef HAL_TIM_OC_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1943:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1943 |   HAL_StatusTypeDef HAL_TIM_OC_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1945:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1945 |   HAL_StatusTypeDef HAL_TIM_OC_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, const uint32_t *pData,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1947:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1947 |   HAL_StatusTypeDef HAL_TIM_OC_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1957:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1957 |   HAL_StatusTypeDef HAL_TIM_PWM_Init(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1958:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1958 |   HAL_StatusTypeDef HAL_TIM_PWM_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1962:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1962 |   HAL_StatusTypeDef HAL_TIM_PWM_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1963:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1963 |   HAL_StatusTypeDef HAL_TIM_PWM_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1965:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1965 |   HAL_StatusTypeDef HAL_TIM_PWM_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1966:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1966 |   HAL_StatusTypeDef HAL_TIM_PWM_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1968:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1968 |   HAL_StatusTypeDef HAL_TIM_PWM_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, const uint32_t *pData,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1970:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1970 |   HAL_StatusTypeDef HAL_TIM_PWM_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1980:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1980 |   HAL_StatusTypeDef HAL_TIM_IC_Init(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1981:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1981 |   HAL_StatusTypeDef HAL_TIM_IC_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1985:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1985 |   HAL_StatusTypeDef HAL_TIM_IC_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1986:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1986 |   HAL_StatusTypeDef HAL_TIM_IC_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1988:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1988 |   HAL_StatusTypeDef HAL_TIM_IC_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1989:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1989 |   HAL_StatusTypeDef HAL_TIM_IC_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1991:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1991 |   HAL_StatusTypeDef HAL_TIM_IC_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, uint32_t *pData, uint16_t Length);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:1992:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 1992 |   HAL_StatusTypeDef HAL_TIM_IC_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2002:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2002 |   HAL_StatusTypeDef HAL_TIM_OnePulse_Init(TIM_HandleTypeDef *htim, uint32_t OnePulseMode);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2003:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2003 |   HAL_StatusTypeDef HAL_TIM_OnePulse_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2007:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2007 |   HAL_StatusTypeDef HAL_TIM_OnePulse_Start(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2008:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2008 |   HAL_StatusTypeDef HAL_TIM_OnePulse_Stop(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2010:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2010 |   HAL_StatusTypeDef HAL_TIM_OnePulse_Start_IT(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2011:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2011 |   HAL_StatusTypeDef HAL_TIM_OnePulse_Stop_IT(TIM_HandleTypeDef *htim, uint32_t OutputChannel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2021:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2021 |   HAL_StatusTypeDef HAL_TIM_Encoder_Init(TIM_HandleTypeDef *htim, const TIM_Encoder_InitTypeDef *sConfig);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2022:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2022 |   HAL_StatusTypeDef HAL_TIM_Encoder_DeInit(TIM_HandleTypeDef *htim);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2026:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2026 |   HAL_StatusTypeDef HAL_TIM_Encoder_Start(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2027:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2027 |   HAL_StatusTypeDef HAL_TIM_Encoder_Stop(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2029:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2029 |   HAL_StatusTypeDef HAL_TIM_Encoder_Start_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2030:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2030 |   HAL_StatusTypeDef HAL_TIM_Encoder_Stop_IT(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2032:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2032 |   HAL_StatusTypeDef HAL_TIM_Encoder_Start_DMA(TIM_HandleTypeDef *htim, uint32_t Channel, uint32_t *pData1,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2034:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2034 |   HAL_StatusTypeDef HAL_TIM_Encoder_Stop_DMA(TIM_HandleTypeDef *htim, uint32_t Channel);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2054:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2054 |   HAL_StatusTypeDef HAL_TIM_OC_ConfigChannel(TIM_HandleTypeDef *htim, const TIM_OC_InitTypeDef *sConfig,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2056:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2056 |   HAL_StatusTypeDef HAL_TIM_PWM_ConfigChannel(TIM_HandleTypeDef *htim, const TIM_OC_InitTypeDef *sConfig,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2058:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2058 |   HAL_StatusTypeDef HAL_TIM_IC_ConfigChannel(TIM_HandleTypeDef *htim, const TIM_IC_InitTypeDef *sConfig,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2060:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2060 |   HAL_StatusTypeDef HAL_TIM_OnePulse_ConfigChannel(TIM_HandleTypeDef *htim, TIM_OnePulse_InitTypeDef *sConfig,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2062:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2062 |   HAL_StatusTypeDef HAL_TIM_ConfigOCrefClear(TIM_HandleTypeDef *htim,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2065:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2065 |   HAL_StatusTypeDef HAL_TIM_ConfigClockSource(TIM_HandleTypeDef *htim, const TIM_ClockConfigTypeDef *sClockSourceConfig);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2066:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2066 |   HAL_StatusTypeDef HAL_TIM_ConfigTI1Input(TIM_HandleTypeDef *htim, uint32_t TI1_Selection);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2067:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2067 |   HAL_StatusTypeDef HAL_TIM_SlaveConfigSynchro(TIM_HandleTypeDef *htim, const TIM_SlaveConfigTypeDef *sSlaveConfig);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2068:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2068 |   HAL_StatusTypeDef HAL_TIM_SlaveConfigSynchro_IT(TIM_HandleTypeDef *htim, const TIM_SlaveConfigTypeDef *sSlaveConfig);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2069:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2069 |   HAL_StatusTypeDef HAL_TIM_DMABurst_WriteStart(TIM_HandleTypeDef *htim, uint32_t BurstBaseAddress,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2072:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2072 |   HAL_StatusTypeDef HAL_TIM_DMABurst_MultiWriteStart(TIM_HandleTypeDef *htim, uint32_t BurstBaseAddress,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2075:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2075 |   HAL_StatusTypeDef HAL_TIM_DMABurst_WriteStop(TIM_HandleTypeDef *htim, uint32_t BurstRequestSrc);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2076:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2076 |   HAL_StatusTypeDef HAL_TIM_DMABurst_ReadStart(TIM_HandleTypeDef *htim, uint32_t BurstBaseAddress,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2078:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2078 |   HAL_StatusTypeDef HAL_TIM_DMABurst_MultiReadStart(TIM_HandleTypeDef *htim, uint32_t BurstBaseAddress,
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2081:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2081 |   HAL_StatusTypeDef HAL_TIM_DMABurst_ReadStop(TIM_HandleTypeDef *htim, uint32_t BurstRequestSrc);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_tim.h:2082:3: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+ 2082 |   HAL_StatusTypeDef HAL_TIM_GenerateEvent(TIM_HandleTypeDef *htim, uint32_t EventSource);
+      |   ^~~~~~~~~~~~~~~~~
+      |   NOR_StatusTypedef
+In file included from Source/../include/../include/CMSIS/stm32f4xx_hal_conf.h:417:
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:186:3: error: 'HAL_LockTypeDef' does not name a type
+  186 |   HAL_LockTypeDef               Lock;             /*!< Locking object                     */
+      |   ^~~~~~~~~~~~~~~
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:718:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  718 | HAL_StatusTypeDef HAL_UART_Init(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:719:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  719 | HAL_StatusTypeDef HAL_HalfDuplex_Init(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:720:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  720 | HAL_StatusTypeDef HAL_LIN_Init(UART_HandleTypeDef *huart, uint32_t BreakDetectLength);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:721:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  721 | HAL_StatusTypeDef HAL_MultiProcessor_Init(UART_HandleTypeDef *huart, uint8_t Address, uint32_t WakeUpMethod);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:722:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  722 | HAL_StatusTypeDef HAL_UART_DeInit(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:745:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  745 | HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:746:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  746 | HAL_StatusTypeDef HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:747:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  747 | HAL_StatusTypeDef HAL_UART_Transmit_IT(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:748:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  748 | HAL_StatusTypeDef HAL_UART_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:749:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  749 | HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:750:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  750 | HAL_StatusTypeDef HAL_UART_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:751:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  751 | HAL_StatusTypeDef HAL_UART_DMAPause(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:752:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  752 | HAL_StatusTypeDef HAL_UART_DMAResume(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:753:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  753 | HAL_StatusTypeDef HAL_UART_DMAStop(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:755:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  755 | HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t *RxLen,
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:757:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  757 | HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_IT(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:758:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  758 | HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:763:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  763 | HAL_StatusTypeDef HAL_UART_Abort(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:764:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  764 | HAL_StatusTypeDef HAL_UART_AbortTransmit(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:765:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  765 | HAL_StatusTypeDef HAL_UART_AbortReceive(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:766:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  766 | HAL_StatusTypeDef HAL_UART_Abort_IT(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:767:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  767 | HAL_StatusTypeDef HAL_UART_AbortTransmit_IT(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:768:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  768 | HAL_StatusTypeDef HAL_UART_AbortReceive_IT(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:790:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  790 | HAL_StatusTypeDef HAL_LIN_SendBreak(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:791:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  791 | HAL_StatusTypeDef HAL_MultiProcessor_EnterMuteMode(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:792:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  792 | HAL_StatusTypeDef HAL_MultiProcessor_ExitMuteMode(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:793:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  793 | HAL_StatusTypeDef HAL_HalfDuplex_EnableTransmitter(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:794:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  794 | HAL_StatusTypeDef HAL_HalfDuplex_EnableReceiver(UART_HandleTypeDef *huart);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:889:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  889 | HAL_StatusTypeDef UART_Start_Receive_IT(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal_uart.h:890:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  890 | HAL_StatusTypeDef UART_Start_Receive_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal.h:220:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  220 | HAL_StatusTypeDef HAL_Init(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal.h:221:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  221 | HAL_StatusTypeDef HAL_DeInit(void);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal.h:224:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  224 | HAL_StatusTypeDef HAL_InitTick (uint32_t TickPriority);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/../include/CMSIS/stm32f4xx_hal.h:237:1: error: 'HAL_StatusTypeDef' does not name a type; did you mean 'NOR_StatusTypedef'?
+  237 | HAL_StatusTypeDef HAL_SetTickFreq(HAL_TickFreqTypeDef Freq);
+      | ^~~~~~~~~~~~~~~~~
+      | NOR_StatusTypedef
+Source/../include/process.h:31:8: error: using typedef-name 'Thread' after 'struct'
+   31 | struct Thread;
+      |        ^~~~~~
+Source/../include/thread.h:161:3: note: 'Thread' has a previous declaration here
+  161 | } Thread;
+      |   ^~~~~~
+Source/mpu.cpp: In function 'uint32_t mpu_encode_size_field(uint32_t)':
+Source/mpu.cpp:33:21: error: 'MPU_RASR_SIZE_Pos' was not declared in this scope
+   33 |     return (SIZE << MPU_RASR_SIZE_Pos) & MPU_RASR_SIZE_Msk;
+      |                     ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp:33:42: error: 'MPU_RASR_SIZE_Msk' was not declared in this scope
+   33 |     return (SIZE << MPU_RASR_SIZE_Pos) & MPU_RASR_SIZE_Msk;
+      |                                          ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp: In function 'uint32_t MPU_GetRegionCount()':
+Source/mpu.cpp:90:14: error: 'MPU' was not declared in this scope
+   90 |     return ((MPU->TYPE >> 8) & 0xFFU);
+      |              ^~~
+Source/mpu.cpp: In function 'void MPU_Init()':
+Source/mpu.cpp:99:5: error: 'MPU' was not declared in this scope
+   99 |     MPU->CTRL = 0;
+      |     ^~~
+Source/mpu.cpp:105:40: error: 'MPU_RBAR_ADDR_Msk' was not declared in this scope
+  105 |     MPU->RBAR = ((uint32_t)&g_kernel & MPU_RBAR_ADDR_Msk) | MPU_RBAR_VALID_Msk | 0;
+      |                                        ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp:105:61: error: 'MPU_RBAR_VALID_Msk' was not declared in this scope
+  105 |     MPU->RBAR = ((uint32_t)&g_kernel & MPU_RBAR_ADDR_Msk) | MPU_RBAR_VALID_Msk | 0;
+      |                                                             ^~~~~~~~~~~~~~~~~~
+Source/mpu.cpp:106:26: error: 'MPU_RASR_AP_Pos' was not declared in this scope
+  106 |     MPU->RASR = (0x1U << MPU_RASR_AP_Pos) | // Priv RW, Unpriv NA
+      |                          ^~~~~~~~~~~~~~~
+Source/mpu.cpp:107:24: error: 'MPU_RASR_XN_Pos' was not declared in this scope
+  107 |                 (0U << MPU_RASR_XN_Pos) |   // Execution allowed
+      |                        ^~~~~~~~~~~~~~~
+Source/mpu.cpp:108:42: error: 'MPU_RASR_SIZE_Pos' was not declared in this scope
+  108 |                 (MPU_REGION_SIZE_32KB << MPU_RASR_SIZE_Pos) |
+      |                                          ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp:109:24: error: 'MPU_RASR_ENABLE_Pos' was not declared in this scope
+  109 |                 (1U << MPU_RASR_ENABLE_Pos);
+      |                        ^~~~~~~~~~~~~~~~~~~
+Source/mpu.cpp:117:17: error: 'MPU_CTRL_PRIVDEFENA_Msk' was not declared in this scope
+  117 |     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+Source/mpu.cpp:117:43: error: 'MPU_CTRL_ENABLE_Msk' was not declared in this scope; did you mean 'SysTick_CTRL_ENABLE_Msk'?
+  117 |     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+      |                                           ^~~~~~~~~~~~~~~~~~~
+      |                                           SysTick_CTRL_ENABLE_Msk
+Source/mpu.cpp: In function 'void hardfault_c_handler(uint32_t*)':
+Source/mpu.cpp:173:17: error: 'g_kernal' was not declared in this scope; did you mean 'g_kernel'?
+  173 |             if (g_kernal && g_kernal->currentThread)
+      |                 ^~~~~~~~
+      |                 g_kernel
+Source/mpu.cpp:176:17: error: 'Kernal_Yield' was not declared in this scope
+  176 |                 Kernal_Yield();
+      |                 ^~~~~~~~~~~~
+Source/mpu.cpp: At global scope:
+Source/mpu.cpp:191:54: error: 'MPURegion' does not name a type
+  191 | void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)
+      |                                                      ^~~~~~~~~
+Source/mpu.cpp: In function 'void MPU_ConfigureRegion(uint8_t, const int*)':
+Source/mpu.cpp:199:58: error: request for member 'size' in '* region', which is of non-class type 'const int'
+  199 |     uint32_t encodedSize = mpu_encode_size_field(region->size);
+      |                                                          ^~~~
+Source/mpu.cpp:200:51: error: request for member 'baseAddress' in '* region', which is of non-class type 'const int'
+  200 |     uint32_t alignedBase = mpu_align_base(region->baseAddress, region->size);
+      |                                                   ^~~~~~~~~~~
+Source/mpu.cpp:200:72: error: request for member 'size' in '* region', which is of non-class type 'const int'
+  200 |     uint32_t alignedBase = mpu_align_base(region->baseAddress, region->size);
+      |                                                                        ^~~~
+Source/mpu.cpp:205:5: error: 'MPU' was not declared in this scope
+  205 |     MPU->RNR = (uint32_t)regionNumber & 0xFFU;
+      |     ^~~
+Source/mpu.cpp:206:31: error: 'MPU_RBAR_ADDR_Msk' was not declared in this scope
+  206 |     MPU->RBAR = alignedBase & MPU_RBAR_ADDR_Msk;
+      |                               ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp:208:30: error: request for member 'attributes' in '* region', which is of non-class type 'const int'
+  208 |     uint32_t rasr = (region->attributes & ~(MPU_RASR_SIZE_Msk | MPU_RASR_ENABLE_Msk)) |
+      |                              ^~~~~~~~~~
+Source/mpu.cpp:208:45: error: 'MPU_RASR_SIZE_Msk' was not declared in this scope
+  208 |     uint32_t rasr = (region->attributes & ~(MPU_RASR_SIZE_Msk | MPU_RASR_ENABLE_Msk)) |
+      |                                             ^~~~~~~~~~~~~~~~~
+Source/mpu.cpp:208:65: error: 'MPU_RASR_ENABLE_Msk' was not declared in this scope
+  208 |     uint32_t rasr = (region->attributes & ~(MPU_RASR_SIZE_Msk | MPU_RASR_ENABLE_Msk)) |
+      |                                                                 ^~~~~~~~~~~~~~~~~~~
+Source/mpu.cpp: In function 'void MPU_Enable()':
+Source/mpu.cpp:222:5: error: 'MPU' was not declared in this scope
+  222 |     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+      |     ^~~
+Source/mpu.cpp:222:17: error: 'MPU_CTRL_PRIVDEFENA_Msk' was not declared in this scope
+  222 |     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+Source/mpu.cpp:222:43: error: 'MPU_CTRL_ENABLE_Msk' was not declared in this scope; did you mean 'SysTick_CTRL_ENABLE_Msk'?
+  222 |     MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+      |                                           ^~~~~~~~~~~~~~~~~~~
+      |                                           SysTick_CTRL_ENABLE_Msk
+Source/mpu.cpp: In function 'void MPU_Disable()':
+Source/mpu.cpp:231:5: error: 'MPU' was not declared in this scope
+  231 |     MPU->CTRL = 0U;
+      |     ^~~
+make: *** [Makefile:45: build/mpu.o] Error 1

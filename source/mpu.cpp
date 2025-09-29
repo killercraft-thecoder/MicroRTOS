@@ -1,8 +1,38 @@
-#include "../include/mpu.h"
+#include "../include/CMSIS/mpu_armv7.h"
 #include "../include/CMSIS/core_cm4.h"  // or core_cm3.h / core_cm7.h depending on MCU
 #include "../include/CMSIS/cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
 #include "../include/process.h"
 #include "../include/thread.h"
+
+extern "C" {
+    void Kernal_Yield();
+}
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+// Build a common attribute set for normal SRAM: cacheable, bufferable, shareable
+static inline uint32_t mpu_attr_normal_mem_rw_noexec_priv_full_unpriv_full(void)
+{
+    return (0x3u << MPU_RASR_AP_Pos) | // AP=3: Priv RW/Unpriv RW
+           (1u << MPU_RASR_XN_Pos) |   // XN=1: no execute
+           (0u << MPU_RASR_TEX_Pos) |
+           (1u << MPU_RASR_C_Pos) | // Cacheable
+           (1u << MPU_RASR_B_Pos) | // Bufferable
+           (1u << MPU_RASR_S_Pos);  // Shareable
+}
+
+// OS data must be privileged-only (kernel/ISRs), not accessible from unprivileged threads
+static inline uint32_t mpu_attr_os_data_priv_rw_unpriv_none_noexec(void)
+{
+    return (0x1u << MPU_RASR_AP_Pos) | // AP=1: Priv RW / Unpriv No Access
+           (1u << MPU_RASR_XN_Pos) |   // XN=1: no execute
+           (0u << MPU_RASR_TEX_Pos) |
+           (1u << MPU_RASR_C_Pos) |
+           (1u << MPU_RASR_B_Pos) |
+           (1u << MPU_RASR_S_Pos);
+}
 
 // ---- Internal helpers ----
 
@@ -85,40 +115,55 @@ static inline uint32_t mpu_align_base(uint32_t baseAddr, uint32_t sizeBytes)
 
 // ---- Public API ----
 
-uint32_t MPU_GetRegionCount(void)
+inline uint32_t MPU_GetRegionCount(void)
 {
-    return ((MPU->TYPE >> 8) & 0xFFU);
+    return ARM_MPU_GetRegionCount();
 }
+
+
 
 void MPU_Init(void)
 {
+    // Ensure memory operations complete before MPU config
     __DMB();
     __DSB();
 
-    // Disable MPU for configuration
-    MPU->CTRL = 0;
+    // Disable MPU before configuration
+    ARM_MPU_Disable();
 
     // -------------------------------
     // Region 0: Kernel memory
     // -------------------------------
-    MPU->RNR = 0;
-    MPU->RBAR = ((uint32_t)&g_kernel & MPU_RBAR_ADDR_Msk) | MPU_RBAR_VALID_Msk | 0;
-    MPU->RASR = (0x1U << MPU_RASR_AP_Pos) | // Priv RW, Unpriv NA
-                (0U << MPU_RASR_XN_Pos) |   // Execution allowed
-                (MPU_REGION_SIZE_32KB << MPU_RASR_SIZE_Pos) |
-                (1U << MPU_RASR_ENABLE_Pos);
+    ARM_MPU_SetRegionEx(
+        0, // Region number
+        (uint32_t)&g_kernel, // Base address
+        ARM_MPU_RASR(
+            0, // Disable execution (XN = 0)
+            mpu_attr_os_data_priv_rw_unpriv_none_noexec(), // Access permission: Privileged RW, Unprivileged NA
+            0, // Type extension field (TEX)
+            0, // Shareable
+            0, // Cacheable
+            0, // Bufferable
+            ARM_MPU_REGION_SIZE_32KB, // Region size
+            1  // Enable region
+        )
+    );
 
     // -------------------------------
-    // Enable MemManage, BusFault, UsageFault
+    // Enable fault handlers
     // -------------------------------
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_USGFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk |
+                  SCB_SHCSR_BUSFAULTENA_Msk |
+                  SCB_SHCSR_USGFAULTENA_Msk;
 
-    // Enable MPU with default privileged map
-    MPU->CTRL = MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+    // Enable MPU with default privileged memory map
+    ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 
+    // Ensure MPU settings take effect
     __DSB();
     __ISB();
 }
+
 
 extern "C"
 {
@@ -170,9 +215,9 @@ extern "C"
         // If it's a recoverable fault, isolate the thread
         if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)
         {
-            if (g_kernal && g_kernal->currentThread)
+            if (g_kernel && g_kernel->currentThread)
             {
-                g_kernal->currentThread->state = THREAD_HALTED;
+                g_kernel->currentThread->state = THREAD_HALTED;
                 Kernal_Yield();
                 return;
             }

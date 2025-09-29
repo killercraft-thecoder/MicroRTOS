@@ -709,9 +709,6 @@ extern "C"
         case SVC_ADD_PROCESS:
             Kernel_Add_Process((Process *)frame[0]);
             break;
-        case SVC_REMOVE_PROCESS:
-            Kernel_Remove_Process((Process *)frame[0]);
-            break;
         case SVC_EXIT:
             Kernal_Thread_Exit(frame[0]);
             break;
@@ -773,19 +770,19 @@ extern "C"
             break;
         }
     }
-}
 
-static void Kernel_Thread_Sleep(uint32_t ms)
-{
-    Thread *t = g_kernel.currentThread;
+    static void Kernel_Thread_Sleep(uint32_t ms)
+    {
+        Thread *t = g_kernel.currentThread;
 
-    // Set wake time
-    t->periodTicks = ms; // optional: reuse as "requested delay"
-    t->nextReleaseTick = g_kernel.systemTicks + ms;
-    t->state = THREAD_SLEEPING;
+        // Set wake time
+        t->periodTicks = ms; // optional: reuse as "requested delay"
+        t->nextReleaseTick = g_kernel.systemTicks + ms;
+        t->state = THREAD_SLEEPING;
 
-    // Preempt so another thread can run
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+        // Preempt so another thread can run
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 }
 
 // GPIO

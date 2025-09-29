@@ -16,9 +16,8 @@
 #include <stdint.h>
 #include "../include/CMSIS/stm32f4xx_hal_gpio.h"
 #include "../include/CMSIS/stm32f4xx_hal_uart.h"
-#include "../include/CMSIS/stm32f4xx_hal.h"
 #include "../include/CMSIS/stm32f4xx_hal_spi.h"
-#include "../include/core_cm4.h"
+#include "../include/CMSIS/core_cm4.h"
 #include "../include/mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
 #define __atomic_read(src, dest) \
@@ -91,8 +90,7 @@ enum
     SVC_YIELD = 2,
     SVC_CREATE_THREAD = 3,
     SVC_ADD_PROCESS = 4,
-    SVC_REMOVE_PROCESS = 5,
-    SVC_EXIT = 6,
+    SVC_EXIT = 5,
 
     // I/O services
     SVC_GPIO_WRITE = 10,
@@ -388,6 +386,44 @@ HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                              uint8_t *pTxData, uint16_t TxSize,
                                              uint8_t *pRxData, uint16_t RxSize,
                                              uint32_t Timeout);
+
+
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t pin;
+    uint32_t mode;
+    uint32_t pull;
+    uint32_t speed;
+} GPIO_NewArgs;
+
+typedef struct {
+    USART_TypeDef *instance;
+    uint32_t baudrate;
+    uint32_t wordLength;
+    uint32_t stopBits;
+    uint32_t parity;
+    uint32_t mode;
+} UART_NewArgs;
+
+typedef struct {
+    I2C_TypeDef *instance;
+    uint32_t timing;
+    uint32_t addressingMode;
+    uint32_t ownAddress;
+} I2C_NewArgs;
+
+typedef struct {
+    SPI_TypeDef *instance;
+    uint32_t mode;
+    uint32_t direction;
+    uint32_t datasize;
+    uint32_t clkpolarity;
+    uint32_t clkphase;
+    uint32_t nss;
+    uint32_t baudratePrescaler;
+    uint32_t firstBit;
+} SPI_NewArgs;
+
 /**
  * @brief Create and initialize a new GPIO pin.
  * @param port GPIO port base (GPIOA, GPIOB, ...).

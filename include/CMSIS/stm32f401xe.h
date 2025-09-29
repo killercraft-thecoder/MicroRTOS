@@ -162,13 +162,30 @@ typedef enum
 
 #define UID_BASE 0x1FFF7A10U  // STM32F401xE UID base address,  Newly Added.
 #define FLASH_CR_SNB_Pos 3 // Also New
-// Start of Larfgre New
+// -------------------
+// Start of Large New
+// -------------------
 #define SPI_CR1_BR_Pos      (3U)
 #define SPI_CR1_BR_Msk      (0x7U << SPI_CR1_BR_Pos)
 
 #define SPI_CRCPR_CRCPOLY_Pos (0U)
 #define SPI_CRCPR_CRCPOLY_Msk (0xFFFFU << SPI_CRCPR_CRCPOLY_Pos)
+#define RCC_CR_HSITRIM_Pos        3U   // Bits 7:3 = HSITRIM[4:0]
+#define RCC_PLLCFGR_PLLN_Pos      6U   // Bits 14:6 = PLLN[8:0]
+#define RCC_CFGR_PPRE1_Pos        10U  // Bits 12:10 = PPRE1[2:0]
+#define RCC_CFGR_PPRE2_Pos        13U  // Bits 15:13 = PPRE2[2:0]
+#define RCC_PLLCFGR_PLLP_Pos      16U  // Bits 17:16 = PLLP[1:0]
+#define RCC_PLLCFGR_PLLQ_Pos      24U  // Bits 27:24 = PLLQ[3:0]
+#define RCC_CFGR_HPRE_Pos         4U   // Bits 7:4 = HPRE[3:0]
+#define RCC_CFGR_SWS_Pos          2U   // Bits 3:2 = SWS[1:0]
+#define RCC_PLLCFGR_PLLM_Pos      0U   // Bits 5:0 = PLLM[5:0]
+#define RCC_PLLI2SCFGR_PLLI2SN_Pos 6U  // Bits 14:6 = PLLI2SN[8:0]
+#define RCC_PLLI2SCFGR_PLLI2SN_Pos 6U  // Bits 14:6 = PLLI2SN[8:0]
+#define RCC_DCKCFGR_TIMPRE 0U // Does Not Exist.
+#define RCC_PLLI2SCFGR_PLLI2SR_Pos 28U  // Bits 30:28 = PLLI2SR[2:0]
+// ---------------------
 // End of Large New
+// ---------------------
 
 /** @addtogroup Peripheral_registers_structures
   * @{
