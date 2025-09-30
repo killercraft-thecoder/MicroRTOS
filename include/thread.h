@@ -20,6 +20,76 @@
 #include "../include/CMSIS/core_cm4.h"
 #include "../include/mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
+typedef struct {
+    volatile int32_t value;
+    volatile uint8_t locked;  // 0 = free, 1 = locked
+} ATOMIC_NUMBER;
+
+typedef struct {
+    volatile bool value;
+    volatile uint8_t locked;
+} ATOMIC_BOOL;
+
+typedef struct {
+    volatile uint32_t bits;
+    volatile uint8_t locked;
+} ATOMIC_FLAGS;
+
+static inline void Atomic_Lock(ATOMIC_NUMBER *a) {
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE)) {
+        // busy wait
+    }
+}
+
+static inline void Atomic_Unlock(ATOMIC_NUMBER *a) {
+    __atomic_clear(&a->locked, __ATOMIC_RELEASE);
+}
+
+static inline void Atomic_Set(ATOMIC_NUMBER *a, int32_t val) {
+    Atomic_Lock(a);
+    a->value = val;
+    Atomic_Unlock(a);
+}
+
+static inline int32_t Atomic_Get(ATOMIC_NUMBER *a) {
+    Atomic_Lock(a);
+    int32_t val = a->value;
+    Atomic_Unlock(a);
+    return val;
+}
+
+static inline void AtomicBool_Set(ATOMIC_BOOL *a, bool val) {
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE));
+    a->value = val;
+    __atomic_clear(&a->locked, __ATOMIC_RELEASE);
+}
+
+static inline bool AtomicBool_Get(ATOMIC_BOOL *a) {
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE));
+    bool val = a->value;
+    __atomic_clear(&a->locked, __ATOMIC_RELEASE);
+    return val;
+}
+
+static inline void AtomicFlags_Set(ATOMIC_FLAGS *f, uint32_t mask) {
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+    f->bits |= mask;
+    __atomic_clear(&f->locked, __ATOMIC_RELEASE);
+}
+
+static inline void AtomicFlags_Clear(ATOMIC_FLAGS *f, uint32_t mask) {
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+    f->bits &= ~mask;
+    __atomic_clear(&f->locked, __ATOMIC_RELEASE);
+}
+
+static inline bool AtomicFlags_Test(ATOMIC_FLAGS *f, uint32_t mask) {
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+    bool result = (f->bits & mask) != 0;
+    __atomic_clear(&f->locked, __ATOMIC_RELEASE);
+    return result;
+}
+
 #define __atomic_read(src, dest) \
     do                           \
     {                            \
@@ -83,7 +153,7 @@ typedef enum : uint8_t
     THREAD_HALTED,              // Thread stopped due to fault or security ban
 } ThreadState;
 
-enum
+enum : uint8_t
 {
     // Thread/Process services
     SVC_THREAD_SLEEP = 1,
@@ -517,3 +587,42 @@ inline uint32_t HAL_GetTick() {
 }
 
 #endif // THREAD_H
+
+#ifndef SPECIAL_STUFF
+#define SPECIAL_STUFF
+
+// PACKED macro
+#if defined(__GNUC__) || defined(__clang__)
+    #define PACKED __attribute__((packed))
+#elif defined(__ICCARM__)  // IAR
+    #define PACKED __packed
+#elif defined(__ARMCC_VERSION)  // ARM Compiler 5/6
+    #define PACKED __attribute__((packed))
+#else
+    #define PACKED
+#endif
+
+// FASTFUNC macro
+#if defined(STM32F479xx)
+    #if defined(__GNUC__) || defined(__clang__)
+        #define FASTFUNC __attribute__((section(".ccmram")))
+    #elif defined(__ICCARM__)
+        #define FASTFUNC @ ".ccmram"
+    #elif defined(__ARMCC_VERSION)
+        #define FASTFUNC __attribute__((section(".ccmram")))
+    #else
+        #define FASTFUNC
+    #endif
+#else
+    #if defined(__GNUC__) || defined(__clang__)
+        #define FASTFUNC __attribute__((section(".ramfunc")))
+    #elif defined(__ICCARM__)
+        #define FASTFUNC @ ".ramfunc"
+    #elif defined(__ARMCC_VERSION)
+        #define FASTFUNC __attribute__((section(".ramfunc")))
+    #else
+        #define FASTFUNC
+    #endif
+#endif
+
+#endif // SPECIAL_STUFF

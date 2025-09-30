@@ -70,6 +70,14 @@ SECTIONS
     KEEP(*(.ramfunc))
   } >RAM
 
+  .ccmram :
+  {
+    . = ALIGN(4);
+    *(.ccmram)
+    *(.ccmram*)
+    . = ALIGN(4);
+  } >CCMRAM
+
   /* Symbols for startup code */
   PROVIDE(_end = .);
   PROVIDE(__heap_base = __heap_start__);
