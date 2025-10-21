@@ -20,71 +20,89 @@
 #include "../include/CMSIS/core_cm4.h"
 #include "../include/mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
 
-typedef struct {
+typedef struct
+{
     volatile int32_t value;
-    volatile uint8_t locked;  // 0 = free, 1 = locked
+    volatile uint8_t locked; // 0 = free, 1 = locked
 } ATOMIC_NUMBER;
 
-typedef struct {
+typedef struct
+{
     volatile bool value;
     volatile uint8_t locked;
 } ATOMIC_BOOL;
 
-typedef struct {
+typedef struct
+{
     volatile uint32_t bits;
     volatile uint8_t locked;
 } ATOMIC_FLAGS;
 
-static inline void Atomic_Lock(ATOMIC_NUMBER *a) {
-    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE)) {
+static inline void Atomic_Lock(ATOMIC_NUMBER *a)
+{
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE))
+    {
         // busy wait
     }
 }
 
-static inline void Atomic_Unlock(ATOMIC_NUMBER *a) {
+static inline void Atomic_Unlock(ATOMIC_NUMBER *a)
+{
     __atomic_clear(&a->locked, __ATOMIC_RELEASE);
 }
 
-static inline void Atomic_Set(ATOMIC_NUMBER *a, int32_t val) {
+static inline void Atomic_Set(ATOMIC_NUMBER *a, int32_t val)
+{
     Atomic_Lock(a);
     a->value = val;
     Atomic_Unlock(a);
 }
 
-static inline int32_t Atomic_Get(ATOMIC_NUMBER *a) {
+static inline int32_t Atomic_Get(ATOMIC_NUMBER *a)
+{
     Atomic_Lock(a);
     int32_t val = a->value;
     Atomic_Unlock(a);
     return val;
 }
 
-static inline void AtomicBool_Set(ATOMIC_BOOL *a, bool val) {
-    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE));
+static inline void AtomicBool_Set(ATOMIC_BOOL *a, bool val)
+{
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE))
+        ;
     a->value = val;
     __atomic_clear(&a->locked, __ATOMIC_RELEASE);
 }
 
-static inline bool AtomicBool_Get(ATOMIC_BOOL *a) {
-    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE));
+static inline bool AtomicBool_Get(ATOMIC_BOOL *a)
+{
+    while (__atomic_test_and_set(&a->locked, __ATOMIC_ACQUIRE))
+        ;
     bool val = a->value;
     __atomic_clear(&a->locked, __ATOMIC_RELEASE);
     return val;
 }
 
-static inline void AtomicFlags_Set(ATOMIC_FLAGS *f, uint32_t mask) {
-    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+static inline void AtomicFlags_Set(ATOMIC_FLAGS *f, uint32_t mask)
+{
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE))
+        ;
     f->bits |= mask;
     __atomic_clear(&f->locked, __ATOMIC_RELEASE);
 }
 
-static inline void AtomicFlags_Clear(ATOMIC_FLAGS *f, uint32_t mask) {
-    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+static inline void AtomicFlags_Clear(ATOMIC_FLAGS *f, uint32_t mask)
+{
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE))
+        ;
     f->bits &= ~mask;
     __atomic_clear(&f->locked, __ATOMIC_RELEASE);
 }
 
-static inline bool AtomicFlags_Test(ATOMIC_FLAGS *f, uint32_t mask) {
-    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE));
+static inline bool AtomicFlags_Test(ATOMIC_FLAGS *f, uint32_t mask)
+{
+    while (__atomic_test_and_set(&f->locked, __ATOMIC_ACQUIRE))
+        ;
     bool result = (f->bits & mask) != 0;
     __atomic_clear(&f->locked, __ATOMIC_RELEASE);
     return result;
@@ -130,8 +148,8 @@ typedef uint32_t time_t;    // absolute time in ms since boot (1 tick = 1 ms)
 typedef int32_t duration_t; // signed interval in ms (end - start)
 
 // Scheduling & priorities
-typedef int priority_t; // thread priority level
-typedef uint32_t tick_t;    // tick count
+typedef int priority_t;  // thread priority level
+typedef uint32_t tick_t; // tick count
 
 // Flags & masks
 typedef uint32_t flag32_t; // 32-bit flags
@@ -292,20 +310,19 @@ void Yield(void);
  */
 void Scheduler_Tick(void);
 
+extern "C"
+{
 
-extern "C" {
-    
-/**
- * @brief Select the next thread to run.
- *
- * Implements the scheduling policy to
- * choose the next ready thread from the scheduler's ready list.
- *
- * @return Pointer to the Thread control block of the next thread to run,
- *         or NULL if no threads are ready.
- */
-thread_t *Scheduler_GetNextThread(void);
-
+    /**
+     * @brief Select the next thread to run.
+     *
+     * Implements the scheduling policy to
+     * choose the next ready thread from the scheduler's ready list.
+     *
+     * @return Pointer to the Thread control block of the next thread to run,
+     *         or NULL if no threads are ready.
+     */
+    thread_t *Scheduler_GetNextThread(void);
 }
 
 /**
@@ -457,8 +474,8 @@ HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                              uint8_t *pRxData, uint16_t RxSize,
                                              uint32_t Timeout);
 
-
-typedef struct {
+typedef struct
+{
     GPIO_TypeDef *port;
     uint16_t pin;
     uint32_t mode;
@@ -466,7 +483,8 @@ typedef struct {
     uint32_t speed;
 } GPIO_NewArgs;
 
-typedef struct {
+typedef struct
+{
     USART_TypeDef *instance;
     uint32_t baudrate;
     uint32_t wordLength;
@@ -475,14 +493,16 @@ typedef struct {
     uint32_t mode;
 } UART_NewArgs;
 
-typedef struct {
+typedef struct
+{
     I2C_TypeDef *instance;
     uint32_t timing;
     uint32_t addressingMode;
     uint32_t ownAddress;
 } I2C_NewArgs;
 
-typedef struct {
+typedef struct
+{
     SPI_TypeDef *instance;
     uint32_t mode;
     uint32_t direction;
@@ -582,7 +602,8 @@ static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
 
 // Here so that HAL can proplery get ticks.
 
-inline uint32_t HAL_GetTick() {
+inline uint32_t HAL_GetTick()
+{
     return OS_GetTick();
 }
 
@@ -593,36 +614,36 @@ inline uint32_t HAL_GetTick() {
 
 // PACKED macro
 #if defined(__GNUC__) || defined(__clang__)
-    #define PACKED __attribute__((packed))
-#elif defined(__ICCARM__)  // IAR
-    #define PACKED __packed
-#elif defined(__ARMCC_VERSION)  // ARM Compiler 5/6
-    #define PACKED __attribute__((packed))
+#define PACKED __attribute__((packed))
+#elif defined(__ICCARM__) // IAR
+#define PACKED __packed
+#elif defined(__ARMCC_VERSION) // ARM Compiler 5/6
+#define PACKED __attribute__((packed))
 #else
-    #define PACKED
+#define PACKED
 #endif
 
 // FASTFUNC macro
 #if defined(STM32F479xx)
-    #if defined(__GNUC__) || defined(__clang__)
-        #define FASTFUNC __attribute__((section(".ccmram")))
-    #elif defined(__ICCARM__)
-        #define FASTFUNC @ ".ccmram"
-    #elif defined(__ARMCC_VERSION)
-        #define FASTFUNC __attribute__((section(".ccmram")))
-    #else
-        #define FASTFUNC
-    #endif
+#if defined(__GNUC__) || defined(__clang__)
+#define FASTFUNC __attribute__((section(".ccmram")))
+#elif defined(__ICCARM__)
+#define FASTFUNC @ ".ccmram"
+#elif defined(__ARMCC_VERSION)
+#define FASTFUNC __attribute__((section(".ccmram")))
 #else
-    #if defined(__GNUC__) || defined(__clang__)
-        #define FASTFUNC __attribute__((section(".ramfunc")))
-    #elif defined(__ICCARM__)
-        #define FASTFUNC @ ".ramfunc"
-    #elif defined(__ARMCC_VERSION)
-        #define FASTFUNC __attribute__((section(".ramfunc")))
-    #else
-        #define FASTFUNC
-    #endif
+#define FASTFUNC
+#endif
+#else
+#if defined(__GNUC__) || defined(__clang__)
+#define FASTFUNC __attribute__((section(".ramfunc")))
+#elif defined(__ICCARM__)
+#define FASTFUNC @ ".ramfunc"
+#elif defined(__ARMCC_VERSION)
+#define FASTFUNC __attribute__((section(".ramfunc")))
+#else
+#define FASTFUNC
+#endif
 #endif
 
 #endif // SPECIAL_STUFF

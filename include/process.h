@@ -7,15 +7,13 @@
 #define __FPU_PRESENT 1U
 
 #if defined(__GNUC__) || defined(__clang__)
-    #define ALIGNED(X) __attribute__((aligned(X)))
+#define ALIGNED(X) __attribute__((aligned(X)))
 #elif defined(_MSC_VER)
-    #define ALIGNED(X) __declspec(align(X))
+#define ALIGNED(X) __declspec(align(X))
 #else
-    #warning "ALIGNED(X) is not supported on this compiler"
-    #define ALIGNED(X) /* alignment not supported */
+#warning "ALIGNED(X) is not supported on this compiler"
+#define ALIGNED(X) /* alignment not supported */
 #endif
-
-
 
 typedef struct
 {
