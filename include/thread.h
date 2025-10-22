@@ -600,11 +600,15 @@ time_t OS_GetTick(void);
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
 
-// Here so that HAL can proplery get ticks.
+// Here so that HAL can proplery get ticks , uses the kernal function since HAL has privalges.
 
 inline uint32_t HAL_GetTick()
 {
-    return OS_GetTick();
+    return Kernel_GetTick();
+}
+
+extern "C" {
+    static inline uint32_t Kernel_GetTick(void);
 }
 
 #endif // THREAD_H
