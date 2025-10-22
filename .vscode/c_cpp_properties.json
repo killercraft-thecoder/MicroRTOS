@@ -10,7 +10,8 @@
                 "__VFP_FP__",
                 "_DEBUG",
                 "UNICODE",
-                "_UNICODE"
+                "_UNICODE",
+                "UF2_BOOTLOADER"
             ],
             "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
             "cStandard": "gnu23",
