@@ -8,7 +8,6 @@
 
 // CMSIS core
 #include "../include/CMSIS/core_cm4.h"
-#include "../include/CMSIS/cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
 #include "../include/CMSIS/mpu_armv7.h"
 
 // -----------------------------------------------------------------------------
@@ -57,7 +56,7 @@ static inline void Remove_Process(Process *p)
     register Process *r0 __asm__("r0") = p;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_REMOVE_PROCESS) : "memory");
 }
-
+KERNAL_FUNCTION
 void Kernal_Add_Process(Process *process)
 {
 
@@ -93,7 +92,7 @@ void Kernal_Add_Process(Process *process)
             process->mainThread->priority);
     }
 }
-
+KERNAL_FUNCTION
 void Kernal_Remove_Process(Process *process)
 {
     // Find the process by PID

@@ -222,7 +222,7 @@ typedef struct
     uint32_t R10; // R10
     uint32_t R11; // R11
     uint32_t R12; // R12
-    uint32_t SP;  // Process Stack Pointer
+    uint32_t SP;  // Reserved
     uint32_t LR;  // Link Register
 } PROCESSOR_TCB;
 
@@ -619,6 +619,8 @@ extern "C" {
     /** @internal @short Do Not Use unless in kernal. */
     inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                      uint32_t *stack, uint32_t stackBytes, status_t priority);
+    /** @internal @short Do Not Use unless in kernal */
+    void Kernal_Wipe_Thread(Thread* t);
 }
 
 #endif // THREAD_H

@@ -310,16 +310,31 @@ extern "C"
         }
     }
 
+    KERNAL_FUNCTION
+    void Kernal_Wipe_Thread(Thread* t) {
+        t->psp = 0;
+        t->stackBase = 0;
+        t->stackSize = 0;
+        t->priority = 0;
+        t->context->R0 = 0;
+        t->context->R12 = 0;
+        t->context->LR = 0;
+        t->
+        return;
+    }
+
+    KERNAL_FUNCTION
     void Kernal_Yield(void)
     {
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
     }
-
+    KERNAL_FUNCTION
     void Kernel_Thread_Exit(status_t code)
     {
         Thread *t = g_kernel.currentThread;
         t->exit_code = code; // store for debugging
         t->state = THREAD_TERMINATED;
+        Kernal_Wipe_Thread(t);
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger context switch
     }
 
@@ -780,7 +795,7 @@ extern "C"
             break;
         }
     }
-
+    KERNAL_FUNCTION
     static void Kernel_Thread_Sleep(uint32_t ms)
     {
         Thread *t = g_kernel.currentThread;

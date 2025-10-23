@@ -228,6 +228,7 @@ extern "C"
     {
         Thread *t = g_kernel.currentThread;
         t->state = ThreadState::THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
     }
 
@@ -237,6 +238,7 @@ extern "C"
     {
         Thread *t = g_kernel.currentThread;
         t->state = ThreadState::THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
     }
 
@@ -246,6 +248,7 @@ extern "C"
     {
         Thread *t = g_kernel.currentThread;
         t->state = ThreadState::THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
     }
 
@@ -277,6 +280,7 @@ extern "C"
             if (g_kernel && g_kernel->currentThread)
             {
                 g_kernel->currentThread->state = THREAD_HALTED;
+                Kernal_Wipe_Thread(g_kernel->currentThread);
                 Kernal_Yield();
                 return;
             }
