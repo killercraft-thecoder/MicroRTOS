@@ -34,6 +34,17 @@ static inline uint32_t mpu_attr_os_data_priv_rw_unpriv_none_noexec(void)
            (1u << MPU_RASR_S_Pos);
 }
 
+// OS code in Flash: execute-only for unprivileged
+static inline uint32_t mpu_attr_os_flash_priv_rw_unpriv_none_exec(void)
+{
+    return (0x1u << MPU_RASR_AP_Pos) | // AP=1: Priv RW / Unpriv No Access (data)
+           (0u   << MPU_RASR_XN_Pos) | // XN=0: executable
+           (0u   << MPU_RASR_TEX_Pos) |
+           (1u   << MPU_RASR_C_Pos)  | // Cacheable
+           (1u   << MPU_RASR_B_Pos)  | // Bufferable
+           (0u   << MPU_RASR_S_Pos);   // Non-shareable (Flash is not shareable)
+}
+
 // ---- Internal helpers ----
 
 // Round up to next power of two >= 32, return SIZE field encoding for RASR
@@ -113,11 +124,53 @@ static inline uint32_t mpu_align_base(uint32_t baseAddr, uint32_t sizeBytes)
     return baseAddr & ~(sz - 1U);
 }
 
+inline __attribute__((weak)) int ARM_MPU_GetRegionCount() {
+    return 8;
+}
+
 // ---- Public API ----
 
 inline uint32_t MPU_GetRegionCount(void)
 {
     return ARM_MPU_GetRegionCount();
+}
+
+extern uint32_t __kernel_text_start__, __kernel_text_end__;
+
+void MPU_AddKernelFlashExecuteOnly(void)
+{
+    // Compute aligned base/size per MPU rules
+    uint32_t start      = (uint32_t)&__kernel_text_start__;
+    uint32_t end        = (uint32_t)&__kernel_text_end__;
+    uint32_t span       = end - start;
+    uint32_t size_pow2  = round_pow2_up(span);
+    uint32_t base       = start & ~(size_pow2 - 1);
+    uint32_t size_field = mpu_size_field(size_pow2);
+
+    // Choose a region index that won’t be overridden; higher numbers win on overlap
+    const uint32_t region = 7;
+
+    // Program the region: executable, unprivileged data access denied
+    ARM_MPU_SetRegionEx(
+        region,
+        base,
+        ARM_MPU_RASR(
+            0,          // executeNever = 0 -> executable
+            mpu_attr_os_flash_priv_rw_unpriv_none_exec(),      // AP: Priv RW, Unpriv No Access (data reads/writes fault in unpriv)
+            0,          // TEX
+            0,          // Shareable (Flash typically non-shareable)
+            1,          // Cacheable
+            1,          // Bufferable
+            size_field, // size encoding
+            1           // enable
+        )
+    );
+
+    // Optional: subregion disable (SRD) to trim spill if size_pow2 > span and >= 256B
+    // MPU->RNR  = region;
+    // MPU->RASR |= (srd_mask << MPU_RASR_SRD_Pos);
+
+    __DSB(); __ISB();
 }
 
 
@@ -144,10 +197,12 @@ void MPU_Init(void)
             0, // Shareable
             0, // Cacheable
             0, // Bufferable
-            ARM_MPU_REGION_SIZE_32KB, // Region size
+            mpu_size_encoding(sizeof(g_kernel)), // Region size
             1  // Enable region
         )
     );
+
+    MPU_AddKernelFlashExecuteOnly();
 
     // -------------------------------
     // Enable fault handlers
@@ -168,6 +223,7 @@ void MPU_Init(void)
 extern "C"
 {
     // Memory Management Fault
+    KERNAL_FUNCTION
     void MemManage_Handler(void)
     {
         Thread *t = g_kernel.currentThread;
@@ -176,6 +232,7 @@ extern "C"
     }
 
     // Bus Fault
+    KERNAL_FUNCTION
     void BusFault_Handler(void)
     {
         Thread *t = g_kernel.currentThread;
@@ -184,6 +241,7 @@ extern "C"
     }
 
     // Usage Fault
+    KERNAL_FUNCTION
     void UsageFault_Handler(void)
     {
         Thread *t = g_kernel.currentThread;
@@ -192,6 +250,7 @@ extern "C"
     }
 
     // Hard Fault
+    KERNAL_FUNCTION
     void HardFault_Handler(void)
     {
         __asm volatile(
@@ -201,7 +260,7 @@ extern "C"
             "MRSNE r0, PSP         \n" // Process Stack Pointer
             "B hardfault_c_handler \n");
     }
-
+    KERNAL_FUNCTION
     void hardfault_c_handler(uint32_t * /*stacked_regs*/)
     {
         uint32_t cfsr = SCB->CFSR;

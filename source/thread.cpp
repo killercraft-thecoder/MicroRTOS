@@ -367,7 +367,7 @@ __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
         "svc %[imm]\n"
         :
         : [imm] "I"(SVC_THREAD_SLEEP), "r"(r0)
-        : "memory");
+        : "r0","memory");
 }
 
 /**
@@ -382,7 +382,7 @@ __attribute__((always_inline)) static inline time_t OS_GetTick(void)
         "mov %0, r0   \n"
         : "=r"(result)
         : "I"(SVC_GET_TICK)
-        : "r0");
+        : "r0","r1","r2","r3","r12","lr","memory");
     return result;
 }
 
@@ -394,11 +394,11 @@ extern "C"
         return g_kernal->systemTicks; // Read Out that data.
     }
 
-    inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+
+    void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                      uint32_t *stack, uint32_t stackBytes, status_t priority)
     {
-        if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS)
-        {
+        if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS || stackBytes < 64) {
             return;
         }
 
@@ -521,6 +521,7 @@ extern "C"
 #endif
     }
 
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_GPIO_New(const GPIO_NewArgs *a)
     {
         if (!a || !a->port)
@@ -530,6 +531,7 @@ extern "C"
         return HAL_OK;
     }
 
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_UART_New(const UART_NewArgs *a)
     {
         if (!a || !a->huart || !a->instance)
@@ -549,6 +551,7 @@ extern "C"
         return HAL_UART_Init(a->huart);
     }
 
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_I2C_New(const I2C_NewArgs *a)
     {
         if (!a || !a->hi2c || !a->instance)
@@ -568,6 +571,7 @@ extern "C"
         return HAL_I2C_Init(a->hi2c);
     }
 
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_SPI_New(const SPI_NewArgs *a)
     {
         if (!a || !a->hspi || !a->instance)
@@ -591,21 +595,22 @@ extern "C"
         return HAL_SPI_Init(a->hspi);
     }
 
+    KERNAL_FUNCTION
     HAL_StatusTypeDef Kernel_SPI_Transmit(SPI_Args *args)
     {
         return HAL_SPI_Transmit(args->hspi, args->txData, args->size, args->timeout);
     }
-
+    KERNAL_FUNCTION
     HAL_StatusTypeDef Kernel_SPI_Receive(SPI_Args *args)
     {
         return HAL_SPI_Receive(args->hspi, args->rxData, args->size, args->timeout);
     }
-
+    KERNAL_FUNCTION
     HAL_StatusTypeDef Kernel_SPI_TransmitReceive(SPI_Args *args)
     {
         return HAL_SPI_TransmitReceive(args->hspi, args->txData, args->rxData, args->size, args->timeout);
     }
-
+    KERNAL_FUNCTION
     static void Kernel_GPIO_Write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
     {
         if (port == NULL)
@@ -615,7 +620,7 @@ extern "C"
         // Optional: validate pin mask against MCU's valid pins
         HAL_GPIO_WritePin(port, pin, state);
     }
-
+    KERNAL_FUNCTION
     static GPIO_PinState Kernel_GPIO_Read(GPIO_TypeDef *port, uint16_t pin)
     {
         if (port == NULL)
@@ -623,7 +628,7 @@ extern "C"
         // Optional: validate pin mask
         return HAL_GPIO_ReadPin(port, pin);
     }
-
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_UART_Transmit(UART_Args *a)
     {
         if (a == NULL || a->huart == NULL || a->pData == NULL)
@@ -632,7 +637,7 @@ extern "C"
             return HAL_OK; // nothing to send
         return HAL_UART_Transmit(a->huart, a->pData, a->Size, a->Timeout);
     }
-
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_UART_Receive(UART_Args *a)
     {
         if (a == NULL || a->huart == NULL || a->pData == NULL)
@@ -641,7 +646,7 @@ extern "C"
             return HAL_OK; // nothing to receive
         return HAL_UART_Receive(a->huart, a->pData, a->Size, a->Timeout);
     }
-
+    KERNAL_FUNCTION
     static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
     {
         if (a == NULL || a->hi2c == NULL)
@@ -671,6 +676,11 @@ extern "C"
         return (uint8_t)(*svc_instr & 0xFFU);
     }
 
+    static inline void set_return_r0(uint32_t *frame, uint32_t value) {
+        frame[0] = value; // R0 in stacked frame
+    }
+    
+
     // Naked SVC handler to preserve LR and access stacked frame
     __attribute__((naked)) void SVC_Handler(void)
     {
@@ -698,12 +708,12 @@ extern "C"
             Kernel_Yield();
             break;
         case SVC_CREATE_THREAD:
-            Kernel_Create_Thread((Thread *)frame[0],
+            Kernal_Create_Thread((Thread *)frame[0],
                                  (void (*)(void *))frame[1],
                                  (void *)frame[2],
                                  (uint32_t *)frame[3],
-                                 *((uint32_t *)&frame[4]), // stackBytes
-                                 *((uint32_t *)&frame[5])  // priority
+                                 ((uint32_t)frame[4]), // stackBytes
+                                 ((uint32_t)frame[5])  // priority
             );
             break;
         case SVC_ADD_PROCESS:
@@ -744,25 +754,25 @@ extern "C"
         case SVC_GPIO_NEW:
         {
             const GPIO_NewArgs *a = (const GPIO_NewArgs *)frame[0];
-            set_return_r0(sf, (uint32_t)Kernel_GPIO_New(a));
+            set_return_r0(frame, (uint32_t)Kernel_GPIO_New(a));
             break;
         }
         case SVC_UART_NEW:
         {
             const UART_NewArgs *a = (const UART_NewArgs *)frame[0];
-            set_return_r0(sf, (uint32_t)Kernel_UART_New(a));
+            set_return_r0(frame, (uint32_t)Kernel_UART_New(a));
             break;
         }
         case SVC_I2C_NEW:
         {
             const I2C_NewArgs *a = (const I2C_NewArgs *)frame[0];
-            set_return_r0(sf, (uint32_t)Kernel_I2C_New(a));
+            set_return_r0(frame, (uint32_t)Kernel_I2C_New(a));
             break;
         }
         case SVC_SPI_NEW:
         {
             const SPI_NewArgs *a = (const SPI_NewArgs *)frame[0];
-            set_return_r0(sf, (uint32_t)Kernel_SPI_New(a));
+            set_return_r0(frame, (uint32_t)Kernel_SPI_New(a));
             break;
         }
 
@@ -770,7 +780,7 @@ extern "C"
             break;
         }
     }
-
+    
     static void Kernel_Thread_Sleep(uint32_t ms)
     {
         Thread *t = g_kernel.currentThread;

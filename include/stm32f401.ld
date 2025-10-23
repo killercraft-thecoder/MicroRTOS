@@ -69,6 +69,26 @@ SECTIONS
     KEEP(*(.ramfunc))
   } >RAM
 
+  .executable :
+  {
+    KEEP(*(.executable))
+  } >RAM
+
+  /* Pure kernel code section */
+  __kernel_start__ = ALIGN(32);
+  .kernel :
+  {
+    . = ALIGN(32);
+    __kernel_text_start__ = .;
+
+    *(.text.kernel .text.kernel.*)
+
+    /* No rodata in .kernel: keep pure code only */
+    . = ALIGN(32);
+    __kernel_text_end__ = .;
+  } >FLASH
+
+
   /* Symbols for startup code */
   PROVIDE(_end = .);
   PROVIDE(__heap_base = __heap_start__);

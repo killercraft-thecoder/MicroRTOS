@@ -84,7 +84,7 @@ void Kernal_Add_Process(Process *process)
     // If the process has a main thread, register it with the scheduler
     if (process->mainThread != NULL)
     {
-        Create_Thread(
+        Kernal_Create_Thread(
             process->mainThread,
             process->mainThread->entry,
             process->mainThread->arg,

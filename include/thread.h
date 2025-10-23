@@ -14,6 +14,7 @@
 #define THREAD_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "../include/CMSIS/stm32f4xx_hal_gpio.h"
 #include "../include/CMSIS/stm32f4xx_hal_uart.h"
 #include "../include/CMSIS/stm32f4xx_hal_spi.h"
@@ -158,6 +159,8 @@ typedef uint16_t flag16_t; // 16-bit flags
 
 // Error/status codes
 typedef int status_t; // return codes from threads/OS functions in the future.
+
+#define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
 
 typedef enum : uint8_t
 {
@@ -371,11 +374,12 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_
 {
     HAL_StatusTypeDef result;
     __asm volatile(
+        "mov r0, %1   \n"
         "svc %1       \n"
         "mov %0, r0   \n"
         : "=r"(result)
         : "I"(SVC_SPI_TRANSMIT), "r"(args)
-        : "r0");
+        : "r0", "r1", "r2", "r3", "r12", "lr", "memory");
     return result;
 }
 
@@ -390,11 +394,12 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_A
 {
     HAL_StatusTypeDef result;
     __asm volatile(
+        "mov r0, %1   \n"
         "svc %1       \n"
         "mov %0, r0   \n"
         : "=r"(result)
         : "I"(SVC_SPI_RECEIVE), "r"(args)
-        : "r0");
+        : "r0", "r1", "r2", "r3", "r12", "lr", "memory");
     return result;
 }
 
@@ -410,11 +415,12 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitRecei
 {
     HAL_StatusTypeDef result;
     __asm volatile(
+        "mov r0, %1   \n"
         "svc %1       \n"
         "mov %0, r0   \n"
         : "=r"(result)
         : "I"(SVC_SPI_TRANSMITRECV), "r"(args)
-        : "r0");
+        : "r0", "r1", "r2", "r3", "r12", "lr", "memory");
     return result;
 }
 
@@ -608,7 +614,11 @@ inline uint32_t HAL_GetTick()
 }
 
 extern "C" {
+    /** @internal @short Do Not Use unless in kernal. */
     static inline uint32_t Kernel_GetTick(void);
+    /** @internal @short Do Not Use unless in kernal. */
+    inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+                                     uint32_t *stack, uint32_t stackBytes, status_t priority);
 }
 
 #endif // THREAD_H
