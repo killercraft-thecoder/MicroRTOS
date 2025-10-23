@@ -50,62 +50,62 @@ extern "C"
         t->context.LR = 0xFFFFFFFD;
         t->stack_base = (uint32_t)t->stackBase;
     }
-}
 
-// -----------------------------------------------------------------------------
-// Low-level context helpers (Cortex-M, PSP). Save R4-R11 and PSP; restore them.
-// -----------------------------------------------------------------------------
-static inline void Save_Context(Thread *t)
-{
-    // Save callee-saved regs to current PSP
-    register uint32_t *psp_reg __asm("r0");
-    __asm volatile(
-        "mrs   r0, psp           \n" // r0 = PSP
-        "stmdb r0!, {r4-r11}     \n" // push R4-R11
-        : "=r"(psp_reg)
-        :
-        : "memory");
+    // -----------------------------------------------------------------------------
+    // Low-level context helpers (Cortex-M, PSP). Save R4-R11 and PSP; restore them.
+    // -----------------------------------------------------------------------------
+    static inline void Save_Context(Thread *t)
+    {
+        // Save callee-saved regs to current PSP
+        register uint32_t *psp_reg __asm("r0");
+        __asm volatile(
+            "mrs   r0, psp           \n" // r0 = PSP
+            "stmdb r0!, {r4-r11}     \n" // push R4-R11
+            : "=r"(psp_reg)
+            :
+            : "memory");
 
-    t->psp = psp_reg;
-    t->context.SP = (uint32_t)psp_reg;
+        t->psp = psp_reg;
+        t->context.SP = (uint32_t)psp_reg;
 
-    // Save special registers (thread execution state)
-    t->primask = __get_PRIMASK();
-    t->basepri = __get_BASEPRI();
-    t->faultmask = __get_FAULTMASK();
-    t->control = __get_CONTROL();
-
-#if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
-    // If lazily stacking FP context, also capture FP state when active.
-    // Optionally detect FPCA bit in CONTROL before touching FP regs.
-    // t->fpscr = __get_FPSCR(); // GET FPSCR
-#endif
-}
-
-static inline void Restore_Context(Thread *t)
-{
-    // Restore interrupt mask state first (safe while still privileged/MSP)
-    __set_PRIMASK(t->primask);
-    __set_BASEPRI(t->basepri);
-    __set_FAULTMASK(t->faultmask);
+        // Save special registers (thread execution state)
+        t->primask = __get_PRIMASK();
+        t->basepri = __get_BASEPRI();
+        t->faultmask = __get_FAULTMASK();
+        t->control = __get_CONTROL();
 
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
-    // Restore FP state here if it save's it (and FPCA is set for the thread)
-    // __set_FPSCR(t->fpscr);
+        // If lazily stacking FP context, also capture FP state when active.
+        // Optionally detect FPCA bit in CONTROL before touching FP regs.
+        // t->fpscr = __get_FPSCR(); // GET FPSCR
+#endif
+    }
+
+    static inline void Restore_Context(Thread *t)
+    {
+        // Restore interrupt mask state first (safe while still privileged/MSP)
+        __set_PRIMASK(t->primask);
+        __set_BASEPRI(t->basepri);
+        __set_FAULTMASK(t->faultmask);
+
+#if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
+        // Restore FP state here if it save's it (and FPCA is set for the thread)
+        // __set_FPSCR(t->fpscr);
 #endif
 
-    // Restore R4–R11 and PSP
-    register uint32_t *psp_reg __asm("r0") = t->psp;
-    __asm volatile(
-        "ldmia r0!, {r4-r11}     \n"
-        "msr   psp, r0           \n"
-        :
-        : "r"(psp_reg)
-        : "memory");
+        // Restore R4–R11 and PSP
+        register uint32_t *psp_reg __asm("r0") = t->psp;
+        __asm volatile(
+            "ldmia r0!, {r4-r11}     \n"
+            "msr   psp, r0           \n"
+            :
+            : "r"(psp_reg)
+            : "memory");
 
-    // Restore CONTROL last for robustness (privilege + SPSEL + FPCA)
-    __set_CONTROL(t->control);
-    __ISB(); // ensure CONTROL takes effect before exception return
+        // Restore CONTROL last for robustness (privilege + SPSEL + FPCA)
+        __set_CONTROL(t->control);
+        __ISB(); // ensure CONTROL takes effect before exception return
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -367,7 +367,7 @@ __attribute__((always_inline)) static inline void Thread_Sleep(time_t ms)
         "svc %[imm]\n"
         :
         : [imm] "I"(SVC_THREAD_SLEEP), "r"(r0)
-        : "r0","memory");
+        : "r0", "memory");
 }
 
 /**
@@ -382,7 +382,7 @@ __attribute__((always_inline)) static inline time_t OS_GetTick(void)
         "mov %0, r0   \n"
         : "=r"(result)
         : "I"(SVC_GET_TICK)
-        : "r0","r1","r2","r3","r12","lr","memory");
+        : "r0", "r1", "r2", "r3", "r12", "lr", "memory");
     return result;
 }
 
@@ -394,11 +394,11 @@ extern "C"
         return g_kernal->systemTicks; // Read Out that data.
     }
 
-
     void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                                     uint32_t *stack, uint32_t stackBytes, status_t priority)
+                              uint32_t *stack, uint32_t stackBytes, status_t priority)
     {
-        if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS || stackBytes < 64) {
+        if (!t || !entry || !stack || g_kernel.threadCount >= MAX_THREADS || stackBytes < 64)
+        {
             return;
         }
 
@@ -676,10 +676,10 @@ extern "C"
         return (uint8_t)(*svc_instr & 0xFFU);
     }
 
-    static inline void set_return_r0(uint32_t *frame, uint32_t value) {
+    static inline void set_return_r0(uint32_t *frame, uint32_t value)
+    {
         frame[0] = value; // R0 in stacked frame
     }
-    
 
     // Naked SVC handler to preserve LR and access stacked frame
     __attribute__((naked)) void SVC_Handler(void)
@@ -780,7 +780,7 @@ extern "C"
             break;
         }
     }
-    
+
     static void Kernel_Thread_Sleep(uint32_t ms)
     {
         Thread *t = g_kernel.currentThread;
