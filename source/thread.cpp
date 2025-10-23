@@ -317,9 +317,14 @@ extern "C"
         t->stackSize = 0;
         t->priority = 0;
         t->context->R0 = 0;
+        t->context->R1 = 0;
+        t->context->R2 = 0;
+        t->context->R3 = 0;
+        t->context->R4 = 0;
+        t->context->R5 = 0;
+        t->context->R6 = 0;
         t->context->R12 = 0;
         t->context->LR = 0;
-        t->
         return;
     }
 
