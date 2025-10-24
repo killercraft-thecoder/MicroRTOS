@@ -161,7 +161,7 @@ typedef uint16_t flag16_t; // 16-bit flags
 typedef int status_t; // return codes from threads/OS functions in the future.
 
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
-
+#define API_FUNCTION /* */
 typedef enum : uint8_t
 {
     THREAD_READY,               // In ready queue, waiting to run

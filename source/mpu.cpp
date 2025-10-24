@@ -137,6 +137,7 @@ inline uint32_t MPU_GetRegionCount(void)
 
 extern uint32_t __kernel_text_start__, __kernel_text_end__;
 
+KERNAL_FUNCTION
 void MPU_AddKernelFlashExecuteOnly(void)
 {
     // Compute aligned base/size per MPU rules
@@ -174,7 +175,7 @@ void MPU_AddKernelFlashExecuteOnly(void)
 }
 
 
-
+KERNAL_FUNCTION
 void MPU_Init(void)
 {
     // Ensure memory operations complete before MPU config
@@ -295,7 +296,7 @@ extern "C"
         return; // TODO actually implement this handler.
     }
 }
-
+KERNAL_FUNCTION
 void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)
 {
     if (!region)
@@ -323,7 +324,7 @@ void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)
     __ISB();
 }
 
-void MPU_Enable(void)
+inline void MPU_Enable(void)
 {
     __DMB();
     __DSB();
@@ -332,7 +333,7 @@ void MPU_Enable(void)
     __ISB();
 }
 
-void MPU_Disable(void)
+inline void MPU_Disable(void)
 {
     __DMB();
     __DSB();
