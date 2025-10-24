@@ -45,6 +45,11 @@ extern "C"
         t->context.R1 = 0x01010101;
         t->context.R2 = 0x02020202;
         t->context.R3 = 0x03030303;
+        t->context.R4 = 0x04040404;
+        t->context.R5 = 0x05050505;
+        t->context.R6 = 0x06060606;
+        t->context.R7 = 0x07070707; 
+        t->context.R8 = 0x08080808;
         t->context.R12 = 0x12121212;
         t->context.SP = (uint32_t)stackTop;
         t->context.LR = 0xFFFFFFFD;
