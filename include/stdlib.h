@@ -1,11 +1,30 @@
-#pragma once
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#ifndef __STDLIB_H_
+#define __STDLIB_H_
 
 #include <stddef.h> // for size_t
+
+/* Null pointer constant */
+#ifndef NULL
+#  define NULL ((void*)0)
+#endif
+
+/* Exit status codes */
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+
+/* Maximum value returned by rand() */
+#define RAND_MAX 0xFFFFFFFF  // 4294967295
+
+/* Types you may want to define here or in <stddef.h> */
+typedef unsigned int size_t;
+typedef int          wchar_t;
+
+/* Division result types */
+typedef struct { int quot; int rem; } div_t;
+typedef struct { long quot; long rem; } ldiv_t;
+typedef struct { long long quot; long long rem; } lldiv_t;
+
+
 
     // Internal seed state
     static unsigned int __rand_seed = 1;
@@ -48,6 +67,4 @@ extern "C"
         }
     }
 
-#ifdef __cplusplus
-}
 #endif

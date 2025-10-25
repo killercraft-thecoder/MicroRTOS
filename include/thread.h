@@ -161,7 +161,10 @@ typedef uint16_t flag16_t; // 16-bit flags
 typedef int status_t; // return codes from threads/OS functions in the future.
 
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
-#define API_FUNCTION /* */
+#define API_FUNCTION(fn)        \
+    static void *__api_ptr_##fn \
+        __attribute__((used, section(".api_table"))) = fn
+
 typedef enum : uint8_t
 {
     THREAD_READY,               // In ready queue, waiting to run
@@ -613,14 +616,15 @@ inline uint32_t HAL_GetTick()
     return Kernel_GetTick();
 }
 
-extern "C" {
+extern "C"
+{
     /** @internal @short Do Not Use unless in kernal. */
     static inline uint32_t Kernel_GetTick(void);
     /** @internal @short Do Not Use unless in kernal. */
     inline void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                      uint32_t *stack, uint32_t stackBytes, status_t priority);
     /** @internal @short Do Not Use unless in kernal */
-    void Kernal_Wipe_Thread(Thread* t);
+    void Kernal_Wipe_Thread(Thread *t);
 }
 
 #endif // THREAD_H

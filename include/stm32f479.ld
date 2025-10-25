@@ -97,6 +97,16 @@ SECTIONS
     __kernel_text_end__ = .;
   } >FLASH
 
+  .api_table 0x081FF000 :
+    {
+        . = ALIGN(4);
+        __api_table_start = .;
+        KEEP(*(.api_table))
+        . = ALIGN(4);
+        __api_table_end = .;
+    } > FLASH
+
+
 
 
 

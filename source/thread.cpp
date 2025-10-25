@@ -133,19 +133,19 @@ void Init_Scheduler(void)
     Start_Scheduler(); // Enter the kernel's main scheduling loop
 }
 
-API_FUNCTION
-static inline void Yield(void)
+API_FUNCTION(Yield)
+void Yield(void)
 {
     __asm volatile("svc %[imm]" ::[imm] "I"(SVC_YIELD) : "memory");
 }
-API_FUNCTION
-static inline void Thread_Exit(status_t code)
+API_FUNCTION(Thread_Exit)
+void Thread_Exit(status_t code)
 {
     register int r0 __asm("r0") = code;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_EXIT) : "memory");
 }
-API_FUNCTION
-static inline void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+API_FUNCTION(Create_Thread)
+void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                                  uint32_t *stack, uint32_t stackBytes, priority_t priority)
 {
     register Thread *r0 __asm__("r0") = t;
@@ -829,16 +829,16 @@ extern "C"
 }
 
 // GPIO
-API_FUNCTION
-static inline void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
+API_FUNCTION(GPIO_WritePin)
+void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
 {
     register GPIO_TypeDef *r0 __asm__("r0") = port;
     register uint32_t r1 __asm__("r1") = pin;
     register uint32_t r2 __asm__("r2") = state;
     __asm volatile("svc %[imm]" ::[imm] "I"(SVC_GPIO_WRITE), "r"(r0), "r"(r1), "r"(r2) : "memory");
 }
-API_FUNCTION
-static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
+API_FUNCTION(GPIO_ReadPin)
+GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
 {
     register GPIO_TypeDef *r0 __asm__("r0") = port;
     register uint32_t r1 __asm__("r1") = pin;
@@ -846,8 +846,8 @@ static inline GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_GPIO_READ), "r"(r0), "r"(r1) : "memory");
     return (GPIO_PinState)ret;
 }
-API_FUNCTION
-static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
+API_FUNCTION(UART_TRANSMIT)
+HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
     UART_Args args = {huart, pData, Size, Timeout};
     register UART_Args *r0 __asm__("r0") = &args;
@@ -855,8 +855,8 @@ static inline HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_TRANSMIT), "r"(r0) : "memory");
     return ret;
 }
-API_FUNCTION
-static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
+API_FUNCTION(UART_Receive)
+HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
     UART_Args args = {huart, pData, Size, Timeout};
     register UART_Args *r0 __asm__("r0") = &args;
@@ -864,8 +864,8 @@ static inline HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t 
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_RECEIVE), "r"(r0) : "memory");
     return ret;
 }
-API_FUNCTION
-static inline HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
+API_FUNCTION(I2C_Master_TransmitReceive)
+HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
                                                            uint16_t DevAddress,
                                                            uint8_t *pTxData, uint16_t TxSize,
                                                            uint8_t *pRxData, uint16_t RxSize,
