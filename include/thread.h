@@ -143,6 +143,13 @@ static inline bool AtomicFlags_Test(ATOMIC_FLAGS *f, uint32_t mask)
         __DSB();     \
         __ISB();     \
     } while (0)
+#if defined(__GNUC__) || defined(__clang__)
+#define ALIGN_STACK __attribute__(aligned(8))
+#elif  defined(_MSC_VER)
+#define ALIGN_STACK __declspec(align(8))
+#else
+#error "ALIGN_STACK Not Supported on this compiler"
+#endif
 
 // Time & durations
 typedef uint32_t time_t;    // absolute time in ms since boot (1 tick = 1 ms)

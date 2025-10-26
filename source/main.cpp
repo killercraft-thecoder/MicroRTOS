@@ -30,7 +30,7 @@ void task_monitor(void *) {
 
 int main() {
     static thread_t thread1, thread2;
-    static uint32_t stack1[256], stack2[256];
+    ALIGN_STACK  uint32_t stack1[256], stack2[256];
 
     Create_Thread(&thread1, task_counter, nullptr, stack1, sizeof(stack1), 1);
     Create_Thread(&thread2, task_monitor, nullptr, stack2, sizeof(stack2), 2);
