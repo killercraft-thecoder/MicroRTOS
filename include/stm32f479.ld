@@ -56,10 +56,10 @@ SECTIONS
   /* Stack Section */
   .stack (COPY):
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
     __stack_start__ = .;
     . = . + 0x1000;       /* 4 KB stack */
-    . = ALIGN(4);
+    . = ALIGN(8);
     __stack_end__ = .;
   } >RAM
 
