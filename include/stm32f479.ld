@@ -35,33 +35,41 @@ SECTIONS
   /* Initialized Data */
   .data : AT (ADDR(.text) + SIZEOF(.text))
   {
+    . = ALIGN(4);
     __data_start__ = .;
     *(.data*)
+    . = ALIGN(4);
     __data_end__ = .;
   } >RAM
 
   /* Uninitialized Data */
   .bss :
-  {
+  {.
+    . = ALIGN(4);
     __bss_start__ = .;
     *(.bss*)
     *(COMMON)
+    . = ALIGN(4);
     __bss_end__ = .;
   } >RAM
 
   /* Stack Section */
   .stack (COPY):
   {
+    . = ALIGN(4);
     __stack_start__ = .;
     . = . + 0x1000;       /* 4 KB stack */
+    . = ALIGN(4);
     __stack_end__ = .;
   } >RAM
 
   /* Heap Section */
   .heap (COPY):
   {
+    . = ALIGN(4);
     __heap_start__ = .;
     . = . + 0x1000;       /* 4 KB heap */
+    . = ALIGN(4);
     __heap_end__ = .;
   } >RAM
 

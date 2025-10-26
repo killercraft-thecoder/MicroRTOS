@@ -1,8 +1,8 @@
-#include "../include/thread.h"
-#include "../include/process.h" // for g_kernel
+#include <thread.h>
+#include <process.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "../include/mpu.h"
+#include <mpu.h>
 
 #define MAX_THREADS 8
 #define TICK_HZ 1000U // 1 ms tick

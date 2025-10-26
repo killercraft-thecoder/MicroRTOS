@@ -15,11 +15,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../include/CMSIS/stm32f4xx_hal_gpio.h"
-#include "../include/CMSIS/stm32f4xx_hal_uart.h"
-#include "../include/CMSIS/stm32f4xx_hal_spi.h"
-#include "../include/CMSIS/core_cm4.h"
-#include "../include/mustinclude.h" // Include Reqiured Files (Files unused , nut if not included compiler will complain about undefined symbols)
+#include <CMSIS/stm32f4xx_hal_gpio.h>
+#include <CMSIS/stm32f4xx_hal_uart.h>
+#include <CMSIS/stm32f4xx_hal_spi.h>
+#include <CMSIS/core_cm4.h>
+#include <mustinclude.h>
 
 typedef struct
 {
@@ -161,9 +161,17 @@ typedef uint16_t flag16_t; // 16-bit flags
 typedef int status_t; // return codes from threads/OS functions in the future.
 
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
-#define API_FUNCTION(fn)        \
-    static void *__api_ptr_##fn \
+#if defined(__GNUC__) || defined(__clang__)
+    #define API_FUNCTION(fn) \
+        static void *__api_ptr_##fn \
         __attribute__((used, section(".api_table"))) = fn
+#elif defined(_MSC_VER)
+    #pragma section(".api_table", read)
+    #define API_FUNCTION(fn) \
+        __declspec(allocate(".api_table")) static void *__api_ptr_##fn = fn
+#else
+    #error "API_FUNCTION macro not supported for this compiler"
+#endif
 
 typedef enum : uint8_t
 {

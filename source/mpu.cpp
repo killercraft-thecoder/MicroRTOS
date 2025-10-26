@@ -1,8 +1,7 @@
-#include "../include/CMSIS/mpu_armv7.h"
-#include "../include/CMSIS/core_cm4.h"  // or core_cm3.h / core_cm7.h depending on MCU
-#include "../include/CMSIS/cmsis_gcc.h" // or cmsis_armclang.h / cmsis_iccarm.h
-#include "../include/process.h"
-#include "../include/thread.h"
+#include <CMSIS/mpu_armv7.h>
+#include <CMSIS/core_cm4>
+#include <process.h>
+#include <thread.h>
 
 extern "C" {
     void Kernal_Yield();

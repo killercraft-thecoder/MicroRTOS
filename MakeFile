@@ -5,7 +5,8 @@ OBJCOPY = arm-none-eabi-objcopy
 
 # MCU flags
 MCU = cortex-m4
-CFLAGS = -mcpu=$(MCU) -mthumb -O2 -nostdlib -ffreestanding
+INCLUDES = -IInclude -IInclude/CMSIS
+CFLAGS = -mcpu=$(MCU) -mthumb -O2 -nostdlib -ffreestanding $(INCLUDES)
 CXXFLAGS = $(CFLAGS)
 LDFLAGS = -TInclude/stm32f401.ld
 

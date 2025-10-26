@@ -1,14 +1,14 @@
-#include "../include/process.h"
-#include "../include/CMSIS/thread.h"
-#include "../include/CMSIS/mpu.h"
+#include <process.h>
+#include <thread.h>
+#include <mpu.h>
 
 #include <stddef.h>
 #include <string.h>
-#include "../include/CMSIS/stm32f4xx_hal_def.h"
+#include <CMSIS/stm32f4xx_hal_def.h>
 
 // CMSIS core
-#include "../include/CMSIS/core_cm4.h"
-#include "../include/CMSIS/mpu_armv7.h"
+#include <CMSIS/core_cm4.h>
+#include <CMSIS/mpu_armv7.h>
 
 // -----------------------------------------------------------------------------
 // Configuration
