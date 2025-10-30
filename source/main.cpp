@@ -28,7 +28,7 @@ void task_monitor(void *) {
     }
 }
 
-int main() {
+int main() { 
     static thread_t thread1, thread2;
     ALIGN_STACK  uint32_t stack1[256], stack2[256];
 

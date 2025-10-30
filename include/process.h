@@ -46,7 +46,7 @@ typedef struct
     // -------------------
     //  System Tick Managment
     // -------------------
-    tick_t systemTicks;
+    volatile tick_t systemTicks;
     // --------------------
     // Process management
     // --------------------
