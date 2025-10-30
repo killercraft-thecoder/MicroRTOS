@@ -56,10 +56,10 @@ typedef struct
     // --------------------
     // Scheduler state
     // --------------------
-    volatile Thread *threadList[MAX_THREADS]; // All threads known to the scheduler
-    volatile uint8_t threadCount;             // Number of active threads
-    volatile uint8_t currentIndex;            // Index of currently running thread
-    volatile Thread *currentThread;           // Pointer to currently running thread
+    Thread *threadList[MAX_THREADS]; // All threads known to the scheduler
+    uint8_t threadCount;             // Number of active threads
+    uint8_t currentIndex;            // Index of currently running thread
+    Thread *currentThread;           // Pointer to currently running thread
 
 } KernelData;
 
