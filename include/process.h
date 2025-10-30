@@ -50,16 +50,16 @@ typedef struct
     // --------------------
     // Process management
     // --------------------
-    Process processTable[MAX_PROCESSES];
-    uint8_t processCount;
+    volatile Process processTable[MAX_PROCESSES];
+    volatile uint8_t processCount;
 
     // --------------------
     // Scheduler state
     // --------------------
-    Thread *threadList[MAX_THREADS]; // All threads known to the scheduler
-    uint8_t threadCount;             // Number of active threads
-    uint8_t currentIndex;            // Index of currently running thread
-    Thread *currentThread;           // Pointer to currently running thread
+    volatile Thread *threadList[MAX_THREADS]; // All threads known to the scheduler
+    volatile uint8_t threadCount;             // Number of active threads
+    volatile uint8_t currentIndex;            // Index of currently running thread
+    volatile Thread *currentThread;           // Pointer to currently running thread
 
 } KernelData;
 
