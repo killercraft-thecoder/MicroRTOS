@@ -50,8 +50,8 @@ typedef struct
     // --------------------
     // Process management
     // --------------------
-    volatile Process processTable[MAX_PROCESSES];
-    volatile uint8_t processCount;
+    Process processTable[MAX_PROCESSES];
+    uint8_t processCount;
 
     // --------------------
     // Scheduler state
