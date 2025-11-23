@@ -165,7 +165,7 @@ typedef uint64_t flag64_t; // 64-bit flags
 typedef uint16_t flag16_t; // 16-bit flags
 
 // Error/status codes
-typedef int status_t; // return codes from threads/OS functions in the future.
+typedef int status_t; // return codes from threads. and maybe OS functions in the future.
 
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
 #if defined(__GNUC__) || defined(__clang__)
