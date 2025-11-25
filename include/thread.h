@@ -145,7 +145,7 @@ static inline bool AtomicFlags_Test(ATOMIC_FLAGS *f, uint32_t mask)
     } while (0)
 #if defined(__GNUC__) || defined(__clang__)
 #define ALIGN_STACK __attribute__(aligned(8))
-#elif  defined(_MSC_VER)
+#elif defined(_MSC_VER)
 #define ALIGN_STACK __declspec(align(8))
 #else
 #error "ALIGN_STACK Not Supported on this compiler"
@@ -169,15 +169,15 @@ typedef int status_t; // return codes from threads. and maybe OS functions in th
 
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
 #if defined(__GNUC__) || defined(__clang__)
-    #define API_FUNCTION(fn) \
-        static void *__api_ptr_##fn \
+#define API_FUNCTION(fn)        \
+    static void *__api_ptr_##fn \
         __attribute__((used, section(".api_table"))) = fn
 #elif defined(_MSC_VER)
-    #pragma section(".api_table", read)
-    #define API_FUNCTION(fn) \
-        __declspec(allocate(".api_table")) static void *__api_ptr_##fn = fn
+#pragma section(".api_table", read)
+#define API_FUNCTION(fn) \
+    __declspec(allocate(".api_table")) static void *__api_ptr_##fn = fn
 #else
-    #error "API_FUNCTION macro not supported for this compiler"
+#error "API_FUNCTION macro not supported for this compiler"
 #endif
 
 typedef enum : uint8_t

@@ -44,14 +44,14 @@ static inline void DisableRegion(uint8_t regionNumber)
 // -----------------------------------------------------------------------------
 // API implementation
 // -----------------------------------------------------------------------------
-
-static inline void Add_Process(Process *p)
+API_FUNCTION(Add_Process)
+void Add_Process(Process *p)
 {
     register Process *r0 __asm__("r0") = p;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_ADD_PROCESS) : "memory");
 }
-
-static inline void Remove_Process(Process *p)
+API_FUNCTION(Remove_Process)
+void Remove_Process(Process *p)
 {
     register Process *r0 __asm__("r0") = p;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_REMOVE_PROCESS) : "memory");

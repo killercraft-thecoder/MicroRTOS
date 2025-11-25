@@ -3,7 +3,8 @@
 #include <process.h>
 #include <thread.h>
 
-extern "C" {
+extern "C"
+{
     void Kernal_Yield();
 }
 
@@ -37,11 +38,11 @@ static inline uint32_t mpu_attr_os_data_priv_rw_unpriv_none_noexec(void)
 static inline uint32_t mpu_attr_os_flash_priv_rw_unpriv_none_exec(void)
 {
     return (0x1u << MPU_RASR_AP_Pos) | // AP=1: Priv RW / Unpriv No Access (data)
-           (0u   << MPU_RASR_XN_Pos) | // XN=0: executable
-           (0u   << MPU_RASR_TEX_Pos) |
-           (1u   << MPU_RASR_C_Pos)  | // Cacheable
-           (1u   << MPU_RASR_B_Pos)  | // Bufferable
-           (0u   << MPU_RASR_S_Pos);   // Non-shareable (Flash is not shareable)
+           (0u << MPU_RASR_XN_Pos) |   // XN=0: executable
+           (0u << MPU_RASR_TEX_Pos) |
+           (1u << MPU_RASR_C_Pos) | // Cacheable
+           (1u << MPU_RASR_B_Pos) | // Bufferable
+           (0u << MPU_RASR_S_Pos);  // Non-shareable (Flash is not shareable)
 }
 
 // ---- Internal helpers ----
@@ -123,7 +124,8 @@ static inline uint32_t mpu_align_base(uint32_t baseAddr, uint32_t sizeBytes)
     return baseAddr & ~(sz - 1U);
 }
 
-inline __attribute__((weak)) int ARM_MPU_GetRegionCount() {
+inline __attribute__((weak)) int ARM_MPU_GetRegionCount()
+{
     return 8;
 }
 
@@ -140,11 +142,11 @@ KERNAL_FUNCTION
 void MPU_AddKernelFlashExecuteOnly(void)
 {
     // Compute aligned base/size per MPU rules
-    uint32_t start      = (uint32_t)&__kernel_text_start__;
-    uint32_t end        = (uint32_t)&__kernel_text_end__;
-    uint32_t span       = end - start;
-    uint32_t size_pow2  = round_pow2_up(span);
-    uint32_t base       = start & ~(size_pow2 - 1);
+    uint32_t start = (uint32_t)&__kernel_text_start__;
+    uint32_t end = (uint32_t)&__kernel_text_end__;
+    uint32_t span = end - start;
+    uint32_t size_pow2 = round_pow2_up(span);
+    uint32_t base = start & ~(size_pow2 - 1);
     uint32_t size_field = mpu_size_field(size_pow2);
 
     // Choose a region index that won’t be overridden; higher numbers win on overlap
@@ -155,24 +157,23 @@ void MPU_AddKernelFlashExecuteOnly(void)
         region,
         base,
         ARM_MPU_RASR(
-            0,          // executeNever = 0 -> executable
-            mpu_attr_os_flash_priv_rw_unpriv_none_exec(),      // AP: Priv RW, Unpriv No Access (data reads/writes fault in unpriv)
-            0,          // TEX
-            0,          // Shareable (Flash typically non-shareable)
-            1,          // Cacheable
-            1,          // Bufferable
-            size_field, // size encoding
-            1           // enable
-        )
-    );
+            0,                                            // executeNever = 0 -> executable
+            mpu_attr_os_flash_priv_rw_unpriv_none_exec(), // AP: Priv RW, Unpriv No Access (data reads/writes fault in unpriv)
+            0,                                            // TEX
+            0,                                            // Shareable (Flash typically non-shareable)
+            1,                                            // Cacheable
+            1,                                            // Bufferable
+            size_field,                                   // size encoding
+            1                                             // enable
+            ));
 
     // Optional: subregion disable (SRD) to trim spill if size_pow2 > span and >= 256B
     // MPU->RNR  = region;
     // MPU->RASR |= (srd_mask << MPU_RASR_SRD_Pos);
 
-    __DSB(); __ISB();
+    __DSB();
+    __ISB();
 }
-
 
 KERNAL_FUNCTION
 void MPU_Init(void)
@@ -188,19 +189,18 @@ void MPU_Init(void)
     // Region 0: Kernel memory
     // -------------------------------
     ARM_MPU_SetRegionEx(
-        0, // Region number
+        0,                   // Region number
         (uint32_t)&g_kernel, // Base address
         ARM_MPU_RASR(
-            0, // Disable execution (XN = 0)
+            0,                                             // Disable execution (XN = 0)
             mpu_attr_os_data_priv_rw_unpriv_none_noexec(), // Access permission: Privileged RW, Unprivileged NA
-            0, // Type extension field (TEX)
-            0, // Shareable
-            0, // Cacheable
-            0, // Bufferable
-            mpu_size_encoding(sizeof(g_kernel)), // Region size
-            1  // Enable region
-        )
-    );
+            0,                                             // Type extension field (TEX)
+            0,                                             // Shareable
+            0,                                             // Cacheable
+            0,                                             // Bufferable
+            mpu_size_encoding(sizeof(g_kernel)),           // Region size
+            1                                              // Enable region
+            ));
 
     MPU_AddKernelFlashExecuteOnly();
 
@@ -211,6 +211,8 @@ void MPU_Init(void)
                   SCB_SHCSR_BUSFAULTENA_Msk |
                   SCB_SHCSR_USGFAULTENA_Msk;
 
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_MON_EN_Msk; // Enable DebugMon_Handler
+
     // Enable MPU with default privileged memory map
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 
@@ -218,7 +220,6 @@ void MPU_Init(void)
     __DSB();
     __ISB();
 }
-
 
 extern "C"
 {
@@ -290,9 +291,25 @@ extern "C"
         NVIC_SystemReset();
     }
 
+    KERNAL_FUNCTION
     void DebugMon_Handler(void)
     {
-        return; // TODO actually implement this handler.
+        uint32_t dfsr = SCB->DFSR; // read cause
+        SCB->DFSR = dfsr;          // clear flags (write 1s)
+
+        if (dfsr & SCB_DFSR_BKPT_Msk)
+        {
+            // Breakpoint instruction triggered
+            
+        }
+        if (dfsr & SCB_DFSR_VCATCH_Msk)
+        {
+            // Vector catch triggered
+        }
+        if (dfsr & SCB_DFSR_EXTERNAL_Msk)
+        {
+            // External debug request
+        }
     }
 }
 KERNAL_FUNCTION

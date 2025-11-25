@@ -423,8 +423,8 @@ extern "C"
     {
         return g_kernal->systemTicks; // Read Out that data.
     }
+    
     KERNAL_FUNCTION
-
     void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                               uint32_t *stack, uint32_t stackBytes, status_t priority)
     {
