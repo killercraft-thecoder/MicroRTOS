@@ -171,7 +171,7 @@ typedef int status_t; // return codes from threads. and maybe OS functions in th
 #if defined(__GNUC__) || defined(__clang__)
 #define API_FUNCTION(fn)        \
     static void *__api_ptr_##fn \
-        __attribute__((used, section(".api_table"))) = fn
+        __attribute__((used, section(".api_table"))) = fn;
 #elif defined(_MSC_VER)
 #pragma section(".api_table", read)
 #define API_FUNCTION(fn) \
@@ -200,6 +200,7 @@ enum : uint8_t
     SVC_CREATE_THREAD = 3,
     SVC_ADD_PROCESS = 4,
     SVC_EXIT = 5,
+    SVC_REMOVE_PROCESS = 6, // This is gonna drive me up the walls. But remeber never change any existing svcs
 
     // I/O services
     SVC_GPIO_WRITE = 10,
@@ -218,7 +219,25 @@ enum : uint8_t
     // Time Services
     SVC_GET_TICK = 40,
 
+    SVC_MUTEX_CREATE = 50,
+    SVC_MUTEX_LOCK = 51,
+    SVC_MUTEX_UNLOCK = 52,
+    SVC_MUTEX_DESTROY = 53,
+    SVC_MUTEX_READ_FROM_THREAD = 54,
+
 };
+
+typedef enum : uint32_t
+{
+    UNLOCKED = 0,
+    LOCKED = 1,
+    FAIL = 2
+} Get_Mutex_Result;
+
+typedef struct
+{
+    bool locked; // True if locked False if not.
+} Mutex;
 
 /**
  *  Full CPU context for an ARM Cortex-M core.
@@ -266,6 +285,9 @@ typedef struct
     uint32_t periodTicks;     // Period for periodic tasks
     uint32_t nextReleaseTick; // Next release time in ticks
     status_t exit_code;       // Exit Code
+    Mutex *ownedMutexes[4];   // Mutexes List
+    uint8_t ownedCount;       // How many Mutexes Held
+    char name[5];             // Thread Name
 } Thread;
 
 typedef Thread thread_t;
@@ -312,7 +334,7 @@ void Start_Scheduler(void);
  * @param priority    Thread priority (0 = lowest, higher = more urgent).
  */
 void Create_Thread(thread_t *t, void (*entry)(void *), void *arg,
-                   uint32_t *stack, size_t stackBytes, status_t priority);
+                   uint32_t *stack, size_t stackBytes, status_t priority, char *name[5]);
 
 /**
  * @brief Voluntarily yield the CPU to another ready thread.
@@ -620,6 +642,24 @@ SPI_HandleTypeDef *SPI_NEW(SPI_TypeDef *instance,
  * @see Kernel_GetTick
  */
 time_t OS_GetTick(void);
+
+/**
+ * @brief Create a unlocked mutex onto the provideded task
+ * @param maker A Pointer to The thread that should Own it
+ */
+Mutex *Mutex_Create(Thread *maker);
+
+/**
+ * @brief Lock a Mutex
+ * @param m pointer to the Mutex
+ */
+void Mutex_Lock(Mutex *m);
+
+/**
+ * @brief Unlock a Mutex
+ * @param m pointer to the Mutex
+ */
+void Mutex_Unlock(Mutex *m);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }

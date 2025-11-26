@@ -48,7 +48,7 @@ extern "C"
         t->context.R4 = 0x04040404;
         t->context.R5 = 0x05050505;
         t->context.R6 = 0x06060606;
-        t->context.R7 = 0x07070707; 
+        t->context.R7 = 0x07070707;
         t->context.R8 = 0x08080808;
         t->context.R9 = 0x09090909;
         t->context.R10 = 0x10101010;
@@ -133,6 +133,13 @@ void Init_Scheduler(void)
     Start_Scheduler(); // Enter the kernel's main scheduling loop
 }
 
+// Here For Some Reason Becuase Linting does not work right if its placed after the API_FUNCTION stuff
+typedef struct
+{
+    uint32_t *stack;
+    char *name[5];
+} _ThreadPartialArgs;
+
 API_FUNCTION(Yield)
 void Yield(void)
 {
@@ -144,16 +151,23 @@ void Thread_Exit(status_t code)
     register int r0 __asm("r0") = code;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_EXIT) : "memory");
 }
+
 API_FUNCTION(Create_Thread)
 void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                                 uint32_t *stack, uint32_t stackBytes, priority_t priority)
+                   uint32_t *stack, uint32_t stackBytes,
+                   priority_t priority, char name[5])
 {
+    _ThreadPartialArgs extra;
+    extra.stack = stack;
+    strncpy(extra.name, name, 5);
+
     register Thread *r0 __asm__("r0") = t;
     register void (*r1)(void *) __asm__("r1") = entry;
     register void *r2 __asm__("r2") = arg;
-    register uint32_t *r3 __asm__("r3") = stack;
+    register _ThreadPartialArgs *r3 __asm__("r3") = &extra;
+
     __asm volatile(
-        "push {r4}\n" // save r4 for stackBytes
+        "push {r4}\n"
         "mov r4, %[stackBytes]\n"
         "svc %[imm]\n"
         "pop {r4}\n"
@@ -162,6 +176,34 @@ void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
           [stackBytes] "r"(stackBytes),
           [imm] "I"(SVC_CREATE_THREAD)
         : "memory");
+}
+
+API_FUNCTION(Mutex_Create)
+Mutex *Mutex_Create(Thread *maker)
+{
+    register Thread *r0 __asm__("r0") = maker;
+    register Mutex *ret __asm__("r0");
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_CREATE) : "memory");
+    return ret;
+}
+API_FUNCTION(Mutex_Lock)
+void Mutex_Lock(Mutex *m)
+{
+    register mutex *r0 __asm__("r0") = m;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_LOCK) : "memory");
+}
+API_FUNCTION(Mutex_Unlock)
+void Mutex_Unlock(Mutex *m)
+{
+    register mutex *r0 __asm__("r0") = m;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_UNLOCK) : "memory");
+}
+API_FUNCTION(Get_Mutex)
+Get_Mutex_Result Get_Mutex(char name[5], int id)
+{
+    register char(*r0) __asm__("r0") = &name;
+    register int __asm__("r1") = id;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_READ_FROM_THREAD) : "memory");
 }
 
 static void Init_SysTick(void)
@@ -320,7 +362,8 @@ extern "C"
     }
 
     KERNAL_FUNCTION
-    void Kernal_Wipe_Thread(Thread* t) {
+    void Kernal_Wipe_Thread(Thread *t)
+    {
         t->psp = 0;
         t->stackBase = 0;
         t->stackSize = 0;
@@ -423,7 +466,7 @@ extern "C"
     {
         return g_kernal->systemTicks; // Read Out that data.
     }
-    
+
     KERNAL_FUNCTION
     void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                               uint32_t *stack, uint32_t stackBytes, status_t priority)
@@ -700,6 +743,63 @@ extern "C"
         return ret;
     }
 
+    KERNAL_FUNCTION
+    Mutex *Kernal_Create_Mutex(Thread *maker)
+    {
+        if (!maker || g_kernel.mutexCount >= MAX_MUTEXES)
+        {
+            return NULL;
+        }
+
+        m->locked = false;
+
+        if (maker->ownedCount < 4)
+        {
+            maker->ownedMutexes[maker->ownedCount++] = m;
+        }
+
+        return m;
+    }
+
+    KERNAL_FUNCTION
+    void Kernal_Lock_Mutex(Mutex *m)
+    {
+        m->locked = true;
+    }
+    KERNAL_FUNCTION
+    void Kernal_Unlock_Mutex(Mutex *m)
+    {
+        m->locked = false;
+    }
+
+    static inline Thread *findThreadByName(const char *target)
+    {
+        for (int i = 0; i < MAX_THREADS; i++)
+        {
+            // Compare up to 5 chars (since name is char[5])
+            if (strncmp(g_kernel.threadList[i].name, target, 5) == 0)
+            {
+                return &threadList[i]; // Found
+            }
+        }
+        return NULL; // Not found
+    }
+
+    KERNAL_FUNCTION
+    Get_Mutex_Result Kernal_Get_Mutex(char name[5], int id)
+    {
+        Thread *t = findThreadByName(name);
+        if (t && id >= 0 && id < 4)
+        {
+            Mutex *m = t->ownedMutexes[id];
+            if (m != NULL)
+            {
+                return (Get_Mutex_Result)m->locked; // this only works as long as Get_Mutex_Result enum has UNLOCKED=0 and LOCKED=1 otherwise needs diffrent approch
+            }
+        }
+        return FAIL; // thread not found, invalid id, or no mutex
+    }
+
     // Extract SVC immediate from the SVC instruction at (PC - 2)
     static inline uint8_t read_svc_number(uint32_t stacked_pc)
     {
@@ -741,14 +841,24 @@ extern "C"
             Kernel_Yield();
             break;
         case SVC_CREATE_THREAD:
+        {
+            _ThreadPartialArgs *extra = (_ThreadPartialArgs *)frame[3];
+
             Kernal_Create_Thread((Thread *)frame[0],
                                  (void (*)(void *))frame[1],
                                  (void *)frame[2],
-                                 (uint32_t *)frame[3],
-                                 ((uint32_t)frame[4]), // stackBytes
-                                 ((uint32_t)frame[5])  // priority
-            );
+                                 extra->stack,        // stack from partial args
+                                 (uint32_t)frame[4],  // stackBytes
+                                 (status_t)frame[5]); // priority
+
+            // Copy the name into the Thread struct
+            Thread *t = (Thread *)frame[0];
+            for (int i = 0; i < 5; i++)
+            {
+                t->name[i] = extra->name[i];
+            }
             break;
+        }
         case SVC_ADD_PROCESS:
             Kernel_Add_Process((Process *)frame[0]);
             break;
@@ -806,6 +916,31 @@ extern "C"
         {
             const SPI_NewArgs *a = (const SPI_NewArgs *)frame[0];
             set_return_r0(frame, (uint32_t)Kernel_SPI_New(a));
+            break;
+        }
+        case SVC_MUTEX_CREATE:
+        {
+            Thread *maker = (Thread *)frame[0]; // r0 holds the thread pointer
+            Mutex *m = Kernal_Create_Mutex(maker);
+            frame[0] = (uint32_t)m; // return mutex pointer in r0
+            break;
+        }
+        case SVC_MUTEX_LOCK:
+        {
+            Mutex *m = (Mutex *)frame[0];
+            Kernal_Lock_Mutex(m);
+            break;
+        }
+        case SVC_MUTEX_UNLOCK:
+        {
+            Mutex *m = (Mutex *)frame[0];
+            Kernal_Unlock_Mutex(m);
+            break;
+        }
+        case SVC_MUTEX_READ_FROM_THREAD:
+        {
+            Get_Mutex_Result result = Kernal_Get_Mutex((char (*)[5])frame[0],frame[1]);
+            set_return_r0(frame,result);
             break;
         }
 
@@ -866,10 +1001,10 @@ HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16
 }
 API_FUNCTION(I2C_Master_TransmitReceive)
 HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
-                                                           uint16_t DevAddress,
-                                                           uint8_t *pTxData, uint16_t TxSize,
-                                                           uint8_t *pRxData, uint16_t RxSize,
-                                                           uint32_t Timeout)
+                                             uint16_t DevAddress,
+                                             uint8_t *pTxData, uint16_t TxSize,
+                                             uint8_t *pRxData, uint16_t RxSize,
+                                             uint32_t Timeout)
 {
     I2C_Args args = {hi2c, DevAddress, pTxData, TxSize, pRxData, RxSize, Timeout};
     register I2C_Args *r0 __asm__("r0") = &args;
