@@ -364,10 +364,12 @@ extern "C"
     KERNAL_FUNCTION
     void Kernal_Wipe_Thread(Thread *t)
     {
+        // Reset Super Imporant Registers
         t->psp = 0;
         t->stackBase = 0;
         t->stackSize = 0;
         t->priority = 0;
+        // Clear Important Registers
         t->context->R0 = 0;
         t->context->R1 = 0;
         t->context->R2 = 0;
@@ -377,7 +379,10 @@ extern "C"
         t->context->R6 = 0;
         t->context->R7 = 0;
         t->context->R12 = 0;
+        // Clear LR
         t->context->LR = 0;
+        // Clear Name
+        memset(p.name, 0, sizeof(p.name));
         return;
     }
 
