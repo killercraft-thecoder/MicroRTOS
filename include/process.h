@@ -35,8 +35,15 @@ typedef struct
  */
 #define MAX_THREADS 8
 
+/** 
+ * @brief Maximum number of semaphores the kernal can track at once
+ * @note semaphores are shared globally
+*/
+#define MAX_SEMAPHORES 24
+
 // Forward declaration to avoid circular include
 struct Thread;
+struct Semaphore;
 
 // -----------------------------------------------------------------------------
 // Contiguous OS data block (no linker script needed)
@@ -60,6 +67,10 @@ typedef struct
     uint8_t threadCount;             // Number of active threads
     uint8_t currentIndex;            // Index of currently running thread
     Thread *currentThread;           // Pointer to currently running thread
+
+    // Semaphores
+    Semaphore semaphoreList[MAX_SEMAPHORES]; // list of semaphores
+    int seamphoreBitMask; // bit mask to find free semaphores
 
 } KernelData;
 

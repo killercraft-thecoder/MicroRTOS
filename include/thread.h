@@ -190,6 +190,7 @@ typedef enum : uint8_t
     THREAD_TERMINATED,          // Finished, awaiting cleanup
     THREAD_WAITING_FOR_SERVICE, // Waiting For Service. (not used)
     THREAD_HALTED,              // Thread stopped due to fault or security ban
+    THREAD_BLOCKED_SEMAPHORE, // Thread Blocked Waiting For Semaphore
 } ThreadState;
 
 enum : uint8_t
@@ -224,6 +225,9 @@ enum : uint8_t
     SVC_MUTEX_UNLOCK = 52,
     SVC_MUTEX_DESTROY = 53,
     SVC_MUTEX_READ_FROM_THREAD = 54,
+    SVC_SEMAPHORE_GET = 55,
+    SVC_SEMAPHORE_SIGNAL = 56,
+    SVC_SEMAPHORE_WAIT = 57,
 
 };
 
@@ -238,6 +242,15 @@ typedef struct
 {
     bool locked; // True if locked False if not.
 } Mutex;
+
+typedef struct 
+{
+    uint8_t value; // if >0 then can be waited on and immditly resume , if equal to 0 then block task. 
+} Semaphore;
+
+typedef struct {
+    uint8_t index; // index in the kernals list of semaphores this is pointing to
+} Semaphore_T;
 
 /**
  *  Full CPU context for an ARM Cortex-M core.
@@ -288,6 +301,7 @@ typedef struct
     Mutex *ownedMutexes[4];   // Mutexes List
     uint8_t ownedCount;       // How many Mutexes Held
     char name[5];             // Thread Name
+    int semaphoreIndex; // Index of Semaphore this thread is Waiting On
 } Thread;
 
 typedef Thread thread_t;

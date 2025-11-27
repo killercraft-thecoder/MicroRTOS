@@ -205,6 +205,25 @@ Get_Mutex_Result Get_Mutex(char name[5], int id)
     register int __asm__("r1") = id;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_READ_FROM_THREAD) : "memory");
 }
+API_FUNCTION(Get_Semaphore)
+Semaphore_T Get_Semaphore(void)
+{
+    register int ret __asm__("r0");
+    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_SEMAPHORE_GET) : "memory");
+    return (Semaphore_T){.id = ret};
+}
+API_FUNCTION(Semaphore_Signal)
+void Semaphore_Signal(Semaphore_T *s)
+{
+    register Semaphore_T *r0 __asm__("r0") = s;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_SEMAPHORE_SIGNAL) : "memory");
+}
+API_FUNCTION(Semaphore_Wait)
+void Semaphore_Wait(Semaphore_T *s)
+{
+    register Semaphore_T *r0 __asm__("r0") = s;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_SEMAPHORE_WAIT) : "memory");
+}
 
 static void Init_SysTick(void)
 {
@@ -321,7 +340,7 @@ extern "C"
 
     void Scheduler_Tick(void)
     {
-        uint32_t g_kernal->ticks = g_kernel.systemTicks++; // increment global tick counter
+        uint32_t g_kernel->ticks = g_kernel.systemTicks++; // increment global tick counter
 
         for (uint8_t i = 0; i < g_kernel.threadCount; i++)
         {
@@ -330,10 +349,10 @@ extern "C"
             // Periodic releases (BLOCKED + period)
             if (t->state == THREAD_BLOCKED && t->periodTicks > 0)
             {
-                if (g_kernal->systemTicks >= t->nextReleaseTick)
+                if (g_kernel->systemTicks >= t->nextReleaseTick)
                 {
                     t->state = THREAD_READY;
-                    t->nextReleaseTick = g_kernal->ticks + t->periodTicks;
+                    t->nextReleaseTick = g_kernel->ticks + t->periodTicks;
                 }
             }
 
@@ -343,6 +362,17 @@ extern "C"
                 if ((int32_t)(g_kernel->systemTicks - t->nextReleaseTick) >= 0)
                 {
                     t->state = THREAD_READY;
+                }
+            }
+
+            // Semaphore waiting wakeups
+            if (t->state == THREAD_BLOCKED_SEMAPHORE)
+            {
+                if (g_kernel->semaphoreList[t->semaphoreIndex].value > 0)
+                {
+                    t->state = THREAD_READY;
+                    g_kernel->semaphoreList[t->semaphoreIndex].value--;
+                    t->semaphoreIndex = 0;
                 }
             }
         }
@@ -469,7 +499,7 @@ extern "C"
 
     static inline uint32_t Kernel_GetTick(void)
     {
-        return g_kernal->systemTicks; // Read Out that data.
+        return g_kernel->systemTicks; // Read Out that data.
     }
 
     KERNAL_FUNCTION
@@ -805,6 +835,61 @@ extern "C"
         return FAIL; // thread not found, invalid id, or no mutex
     }
 
+    // Find a free semaphore slot in the bitmask.
+    // Returns index [0..MAX_SEMAPHORES-1] if found, -1 if none free.
+    static inline int Semaphore_Alloc(uint32_t *bitmap)
+    {
+        for (int i = 0; i < MAX_SEMAPHORES; i++)
+        {
+            uint32_t mask = (1u << i);
+            if ((*bitmap & mask) == 0)
+            {
+                *bitmap |= mask; // mark as used
+                return i;
+            }
+        }
+        return -1; // no free semaphore
+    }
+
+    // Release a semaphore slot by index.
+    // Safe: ignores invalid indices or already-free slots.
+    static inline void Semaphore_Release(uint32_t *bitmap, int id)
+    {
+        if (id >= 0 && id < MAX_SEMAPHORES)
+        {
+            *bitmap &= ~(1u << id); // mark as free
+        }
+    }
+
+    KERNAL_FUNCTION
+    int Semaphore_Allocate()
+    {
+        int id = Semaphore_Alloc(g_kernel.seamphoreBitMask);
+        return id;
+    }
+    KERNAL_FUNCTION
+    void Semaphore_Free(Semaphore_T *s)
+    {
+        Semaphore_Release(g_kernel.seamphoreBitMask, s.id);
+    }
+    KERNAL_FUNCTION
+    void Semaphore_Signal(Semaphore_T *s)
+    {
+        g_kernel.semaphoreList[s.index].value++;
+    }
+    KERNAL_FUNCTION
+    void Semaphore_Wait(Semaphore_T *s)
+    {
+        if (g_kernel.semaphoreList[s.index].value > 0)
+        {
+            g_kernel.semaphoreList[s.index].value--;
+        }
+        else
+        {
+            g_kernel.currentThread.state = THREAD_BLOCKED_SEMAPHORE;
+            g_kernel.currentThread.semaphoreIndex = s.index;
+        }
+    }
     // Extract SVC immediate from the SVC instruction at (PC - 2)
     static inline uint8_t read_svc_number(uint32_t stacked_pc)
     {
@@ -944,8 +1029,24 @@ extern "C"
         }
         case SVC_MUTEX_READ_FROM_THREAD:
         {
-            Get_Mutex_Result result = Kernal_Get_Mutex((char (*)[5])frame[0],frame[1]);
-            set_return_r0(frame,result);
+            Get_Mutex_Result result = Kernal_Get_Mutex((char (*)[5])frame[0], frame[1]);
+            set_return_r0(frame, result);
+            break;
+        }
+        case SVC_SEMAPHORE_GET:
+        {
+            int result = Semaphore_Allocate();
+            set_return_r0(frame, result);
+            break;
+        }
+        case SVC_SEMAPHORE_SIGNAL:
+        {
+            Semaphore_Signal((Semaphore_T*)frame[0]);
+            break;
+        }
+        case SVC_SEMAPHORE_WAIT:
+        {
+            Semaphore_Wait((Semaphore_T*)frame[0]);
             break;
         }
 
