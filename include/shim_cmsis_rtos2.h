@@ -12,8 +12,9 @@ extern "C"
     void Start_Scheduler(void);
     void Yield(void);
     void Thread_Sleep(uint32_t ms);
-    void Create_Thread(struct Thread *t, void (*entry)(void *), void *arg,
-                       uint32_t *stack, uint32_t stackBytes, uint32_t priority);
+    void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
+                   uint32_t *stack, uint32_t stackBytes,
+                   priority_t priority, char name[5])
     void Thread_Exit(int code);
 
 #ifdef __cplusplus
@@ -64,7 +65,7 @@ static inline osThreadId_t osThreadNew(osThreadFunc_t func, void *argument,
     struct Thread *t = (struct Thread *)attr->cb_mem;
     Create_Thread(t, (void (*)(void *))func, argument,
                   (uint32_t *)attr->stack_mem, attr->stack_size,
-                  (uint32_t)((attr->priority < 0) ? 0 : attr->priority));
+                  (uint32_t)((attr->priority < 0) ? 0 : attr->priority),"CMSIS");
     return (osThreadId_t)t;
 }
 

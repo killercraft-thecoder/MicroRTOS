@@ -28,7 +28,8 @@ void Yield(void);               // SVC-backed
 void Thread_Sleep(uint32_t ms); // SVC-backed
 
 void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
-                   uint32_t *stack, uint32_t stackBytes, uint32_t priority);
+                   uint32_t *stack, uint32_t stackBytes,
+                   priority_t priority, char name[5])
 
 void Thread_Exit(void);
 
@@ -94,7 +95,7 @@ static inline TaskHandle_t xTaskCreateStatic(TaskFunction_t pxTaskCode,
     _ShimTaskStore *store = (_ShimTaskStore *)pxTaskBuffer;
 
     Create_Thread(&store->tcb, (void (*)(void *))pxTaskCode, pvParameters,
-                  (uint32_t *)puxStackBuffer, stackBytes, (uint32_t)uxPriority);
+                  (uint32_t *)puxStackBuffer, stackBytes, (uint32_t)uxPriority,"FRETK");
 
     return (TaskHandle_t)&store->tcb;
 }
