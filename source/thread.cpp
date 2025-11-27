@@ -963,23 +963,23 @@ extern "C"
             break;
 
         case SVC_UART_TRANSMIT:
-            frame[0] = Kernel_UART_Transmit((UART_Args *)frame[0]);
+            frame[0] = (uint32_t)Kernel_UART_Transmit((UART_Args *)frame[0]);
             break;
         case SVC_UART_RECEIVE:
-            frame[0] = Kernel_UART_Receive((UART_Args *)frame[0]);
+            frame[0] = (uint32_t)Kernel_UART_Receive((UART_Args *)frame[0]);
             break;
 
         case SVC_I2C_MASTER_TXRX:
-            frame[0] = Kernel_I2C_Master_TransmitReceive((I2C_Args *)frame[0]);
+            frame[0] = (uint32_t)Kernel_I2C_Master_TransmitReceive((I2C_Args *)frame[0]);
             break;
         case SVC_GET_TICK:
             frame[0] = Kernel_GetTick();
             break;
         case SVC_SPI_TRANSMIT:
-            frame[0] = Kernel_SPI_Transmit((SPI_Args *)frame[0]);
+            frame[0] = (uint32_t)Kernel_SPI_Transmit((SPI_Args *)frame[0]);
             break;
         case SVC_SPI_RECEIVE:
-            frame[0] = Kernel_SPI_Receive((SPI_Args *)frame[0]);
+            frame[0] = (uint32_t)Kernel_SPI_Receive((SPI_Args *)frame[0]);
             break;
         case SVC_SPI_TRANSMITRECV:
             frame[0] = Kernel_SPI_TransmitReceive((SPI_Args *)frame[0]);
