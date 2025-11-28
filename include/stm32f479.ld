@@ -114,10 +114,6 @@ SECTIONS
         __api_table_end = .;
     } > FLASH
 
-
-
-
-
   /* Symbols for startup code */
   PROVIDE(_end = .);
   PROVIDE(__heap_base = __heap_start__);
