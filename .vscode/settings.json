@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "*.asm": "cpuasm",
+        "*.asm": "arm",
         "*.sc": "plaintext",
         "cstdint": "cpp",
         "stm32f4xx_hal.h": "c",

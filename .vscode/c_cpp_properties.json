@@ -13,7 +13,7 @@
                 "_UNICODE",
                 "UF2_BOOTLOADER"
             ],
-            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
+            "compilerPath": "C:/msys64/var/cache/pacman/pkg/mingw-w64-x86_64-arm-none-eabi-gcc-13.3.0-1-any.pkg/mingw64/bin/arm-none-eabi-gcc.exe",
             "cStandard": "gnu23",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-arm"

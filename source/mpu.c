@@ -2,9 +2,8 @@
 #include <CMSIS/core_cm4>
 #include <process.h>
 #include <thread.h>
+#include <debug_printf.h>
 
-extern "C"
-{
     void Kernal_Yield();
 }
 
@@ -221,8 +220,6 @@ void MPU_Init(void)
     __ISB();
 }
 
-extern "C"
-{
     // Memory Management Fault
     KERNAL_FUNCTION
     void MemManage_Handler(void)
@@ -297,21 +294,69 @@ extern "C"
         uint32_t dfsr = SCB->DFSR; // read cause
         SCB->DFSR = dfsr;          // clear flags (write 1s)
 
+        debug_printf("DebugMon fault: DFSR=0x%08lX\n", dfsr);
+
         if (dfsr & SCB_DFSR_BKPT_Msk)
         {
             // Breakpoint instruction triggered
-            
+            debug_printf(" Breakpoint had been triggered.\n");
         }
         if (dfsr & SCB_DFSR_VCATCH_Msk)
         {
             // Vector catch triggered
+            debug_printf(" Vector Catch had triggered.\n");
         }
         if (dfsr & SCB_DFSR_EXTERNAL_Msk)
         {
             // External debug request
+            debug_printf(" External Debug Request had triggered.\n");
         }
     }
-}
+
+    KERNAL_FUNCTION
+    void FPU_IRQHandler(void)
+    {
+        // Read FPSCR to see what caused the fault
+        uint32_t fpscr = __get_FPSCR();
+
+        // Mask of all cumulative exception flags we care about
+        const uint32_t fpu_flags_mask = 0x9F; // bits 0–4 and 7
+
+        // Extract only the exception flags
+        uint32_t flags = fpscr & fpu_flags_mask;
+
+        if (flags != 0)
+        {
+            // Debug log which flags were set
+            debug_printf("FPU fault: FPSCR=0x%08lX\n", fpscr);
+
+            if (flags & (1U << 0))
+                debug_printf("  Invalid Operation (IOC)\n");
+            if (flags & (1U << 1))
+                debug_printf("  Divide by Zero (DZC)\n");
+            if (flags & (1U << 2))
+                debug_printf("  Overflow (OFC)\n");
+            if (flags & (1U << 3))
+                debug_printf("  Underflow (UFC)\n");
+            if (flags & (1U << 4))
+                debug_printf("  Inexact (IXC)\n");
+            if (flags & (1U << 7))
+                debug_printf("  Input Denormal (IDC)\n");
+        }
+
+        // Clear exception flags (write-1-to-clear)
+        __set_FPSCR(fpscr & fpu_flags_mask);
+
+        // Halt the current thread like other fault handlers
+        Thread *t = g_kernel.currentThread;
+        if (t)
+        {
+            t->state = ThreadState::THREAD_HALTED;
+            Kernal_Wipe_Thread(t);
+            SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger PendSV for reschedule
+        }
+    }
+
 KERNAL_FUNCTION
 void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)
 {
