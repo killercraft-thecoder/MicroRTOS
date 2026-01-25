@@ -1,3 +1,5 @@
+# currnetly for compling for stm32f401. i will add stm32u5xx support soon.
+
 # Toolchain
 CC = arm-none-eabi-gcc
 CXX = arm-none-eabi-g++

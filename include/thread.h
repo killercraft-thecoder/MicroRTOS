@@ -220,6 +220,7 @@ enum : uint8_t
     // Time Services
     SVC_GET_TICK = 40,
 
+    // Mutex and Semaphore stuff
     SVC_MUTEX_CREATE = 50,
     SVC_MUTEX_LOCK = 51,
     SVC_MUTEX_UNLOCK = 52,
@@ -230,6 +231,8 @@ enum : uint8_t
     SVC_SEMAPHORE_WAIT = 57,
 
     
+
+
 
 };
 
