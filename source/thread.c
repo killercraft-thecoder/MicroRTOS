@@ -381,6 +381,23 @@ void Scheduler_Tick(void)
                 t->queueIndex = 0;
             }
         }
+
+        for (int j = 0; j < MAX_TIMERS_PER_THREAD; j++)
+        {
+            SoftTimer *tm = &t->timers[j];
+
+            if (tm->active && !tm->finished)
+            {
+                if (tm->ms_left > 0)
+                {
+                    tm->ms_left--;
+                    if (tm->ms_left == 0)
+                    {
+                        tm->finished = true;
+                    }
+                }
+            }
+        }
     }
 
     // Quantum countdown for current thread
@@ -1009,6 +1026,79 @@ QueueStatus Kernel_Queue_TryReceive(MessageQueue *q, void *msgOut)
     return QUEUE_OK;
 }
 
+KERNEL_FUNCTION
+uint8_t Kernel_Timer_Create(Thread *t, uint32_t ms)
+{
+    for (uint8_t i = 0; i < MAX_TIMERS_PER_THREAD; i++)
+    {
+        SoftTimer *tm = &t->timers[i];
+
+        if (!tm->active)
+        {
+            tm->active = true;
+            tm->finished = false;
+            tm->ms_left = ms;
+            return i; // timerId
+        }
+    }
+
+    return 0xFF; // no free timer slots
+}
+
+KERNEL_FUNCTION
+bool Kernel_Timer_IsDone(Thread *t, uint8_t timerId)
+{
+    if (timerId >= MAX_TIMERS_PER_THREAD)
+        return false;
+
+    SoftTimer *tm = &t->timers[timerId];
+    return tm->active && tm->finished;
+}
+
+KERNEL_FUNCTION
+bool Kernel_Timer_Reset(Thread *t, uint8_t id, uint32_t ms)
+{
+    if (id >= MAX_TIMERS_PER_THREAD)
+        return false;
+
+    SoftTimer *tm = &t->timers[id];
+
+    if (!tm->active)
+        return false;
+
+    tm->ms_left = ms;
+    tm->finished = false;
+    return true;
+}
+
+KERNEL_FUNCTION
+bool Kernel_Timer_Cancel(Thread *t, uint8_t id)
+{
+    if (id >= MAX_TIMERS_PER_THREAD)
+        return false;
+
+    SoftTimer *tm = &t->timers[id];
+
+    tm->active = false;
+    tm->finished = false;
+    tm->ms_left = 0;
+    return true;
+}
+
+KERNEL_FUNCTION
+uint32_t Kernel_Timer_Remaining(Thread *t, uint8_t id)
+{
+    if (id >= MAX_TIMERS_PER_THREAD)
+        return 0;
+
+    SoftTimer *tm = &t->timers[id];
+
+    if (!tm->active)
+        return 0;
+
+    return tm->ms_left;
+}
+
 // Extract SVC immediate from the SVC instruction at (PC - 2)
 static inline uint8_t read_svc_number(uint32_t stacked_pc)
 {
@@ -1208,6 +1298,47 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         break;
     }
 
+    case SVC_TIMER_CREATE:
+    {
+        Thread *t = g_kernel.currentThread;
+        uint32_t ms = frame[0];
+        frame[0] = Kernel_Timer_Create(t, ms);
+        break;
+    }
+
+    case SVC_TIMER_IS_DONE:
+    {
+        Thread *t = g_kernel.currentThread;
+        uint8_t id = (uint8_t)frame[0];
+        frame[0] = Kernel_Timer_IsDone(t, id);
+        break;
+    }
+
+    case SVC_TIMER_RESET:
+    {
+        Thread *t = g_kernel.currentThread;
+        uint8_t id = (uint8_t)frame[0];
+        uint32_t ms = frame[1];
+        frame[0] = Kernel_Timer_Reset(t, id, ms);
+        break;
+    }
+
+    case SVC_TIMER_CANCEL:
+    {
+        Thread *t = g_kernel.currentThread;
+        uint8_t id = (uint8_t)frame[0];
+        frame[0] = Kernel_Timer_Cancel(t, id);
+        break;
+    }
+
+    case SVC_TIMER_REMAINING:
+    {
+        Thread *t = g_kernel.currentThread;
+        uint8_t id = (uint8_t)frame[0];
+        frame[0] = Kernel_Timer_Remaining(t, id);
+        break;
+    }
+
     default:
         break;
     }
@@ -1327,4 +1458,63 @@ QueueStatus QUEUE_TRY_RECEIVE(MessageQueue *q, void *msgOut)
     QueueStatus result;
     __asm volatile("mov %0, r0" : "=r"(result));
     return result;
+}
+API_FUNCTION(TIMER_CREATE)
+uint8_t Timer_Create(uint32_t ms)
+{
+    register uint32_t r0 __asm__("r0") = ms;
+
+    __asm volatile("svc %0" ::"i"(SVC_TIMER_CREATE), "r"(r0) : "memory");
+
+    uint8_t id;
+    __asm volatile("mov %0, r0" : "=r"(id));
+    return id;
+}
+API_FUNCTION(TIMER_IS_DONE)
+bool Timer_IsDone(uint8_t timerId)
+{
+    register uint32_t r0 __asm__("r0") = timerId;
+
+    __asm volatile("svc %0" ::"i"(SVC_TIMER_IS_DONE), "r"(r0) : "memory");
+
+    bool done;
+    __asm volatile("mov %0, r0" : "=r"(done));
+    return done;
+}
+
+API_FUNCTION(TIMER_RESET)
+bool Timer_Reset(uint8_t timerId, uint32_t ms)
+{
+    register uint32_t r0 __asm__("r0") = timerId;
+    register uint32_t r1 __asm__("r1") = ms;
+
+    __asm volatile("svc %0" :: "i"(SVC_TIMER_RESET), "r"(r0), "r"(r1) : "memory");
+
+    bool result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
+}
+
+API_FUNCTION(TIMER_CANCEL)
+bool Timer_Cancel(uint8_t timerId)
+{
+    register uint32_t r0 __asm__("r0") = timerId;
+
+    __asm volatile("svc %0" :: "i"(SVC_TIMER_CANCEL), "r"(r0) : "memory");
+
+    bool result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
+}
+
+API_FUNCTION(TIMER_REMAINING)
+uint32_t Timer_Remaining(uint8_t timerId)
+{
+    register uint32_t r0 __asm__("r0") = timerId;
+
+    __asm volatile("svc %0" :: "i"(SVC_TIMER_REMAINING), "r"(r0) : "memory");
+
+    uint32_t remaining;
+    __asm volatile("mov %0, r0" : "=r"(remaining));
+    return remaining;
 }

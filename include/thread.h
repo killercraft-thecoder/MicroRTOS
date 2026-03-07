@@ -224,6 +224,11 @@ enum : uint8_t
 
     // Time Services
     SVC_GET_TICK = 40,
+    SVC_TIMER_CREATE = 41,
+    SVC_TIMER_ISDONE = 42,
+    SVC_TIMER_RESET = 43,
+    SVC_TIMER_CANCEL = 44,
+    SVC_TIMER_REMAINING =  45,
 
     // Mutex & Semaphores
     SVC_MUTEX_CREATE = 50,
@@ -773,6 +778,71 @@ void QUEUE_SEND(MessageQueue *q, const void *msg);
  * @param msgOut   Pointer to a buffer where the message will be copied.
  */
 void QUEUE_RECEIVE(MessageQueue *q, void *msgOut);
+
+/**
+ * @brief Create a new software timer for the calling thread.
+ *
+ * The timer begins counting down immediately from the specified duration.
+ * Timers are per-thread; each thread may have up to MAX_TIMERS_PER_THREAD timers.
+ *
+ * @param ms Duration of the timer in milliseconds.
+ *
+ * @return uint8_t
+ *         Timer ID (0–3) on success.
+ *         0xFF if no timer slots are available.
+ *
+ * @note This function does not block. The timer runs in the background.
+ * @note The timer must be polled using Timer_IsDone().
+ */
+uint8_t Timer_Create(uint32_t ms);
+
+/**
+ * @brief Check whether a previously created timer has finished.
+ *
+ * @param timerId The ID returned by Timer_Create().
+ *
+ * @return true  if the timer has expired.
+ * @return false if the timer is still running or the ID is invalid.
+ *
+ * @note This function does not block.
+ * @note Once a timer is finished, it remains finished until reused.
+ */
+bool Timer_IsDone(uint8_t timerId);
+
+/**
+ * @brief Reset an existing timer to a new duration.
+ *
+ * The timer begins counting down immediately from the new value.
+ *
+ * @param timerId The ID returned by Timer_Create().
+ * @param ms      New duration in milliseconds.
+ *
+ * @return true  if the timer was valid and reset.
+ * @return false if the timerId is invalid or the timer is inactive.
+ */
+bool Timer_Reset(uint8_t timerId, uint32_t ms);
+
+/**
+ * @brief Cancel a running or finished timer.
+ *
+ * The timer slot becomes free and may be reused by Timer_Create().
+ *
+ * @param timerId The ID returned by Timer_Create().
+ *
+ * @return true  if the timer was valid and cancelled.
+ * @return false if the timerId is invalid.
+ */
+bool Timer_Cancel(uint8_t timerId);
+
+/**
+ * @brief Get the remaining time of a timer.
+ *
+ * @param timerId The ID returned by Timer_Create().
+ *
+ * @return uint32_t Remaining milliseconds.
+ *         Returns 0 if the timer is finished, inactive, or invalid.
+ */
+uint32_t Timer_Remaining(uint8_t timerId);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
