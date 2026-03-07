@@ -247,6 +247,12 @@ enum : uint8_t
     SVC_QUEUE_TRY_SEND = 63,
     SVC_QUEUE_TRY_RECEIVE = 64,
 
+    // Memory
+    SVC_MALLOC = 70,
+    SVC_FREE = 71,
+    SVC_CALLOC = 72,
+    SVC_REALLOC = 73,
+
 };
 
 typedef enum : uint32_t
@@ -844,6 +850,54 @@ bool Timer_Cancel(uint8_t timerId);
  *         Returns 0 if the timer is finished, inactive, or invalid.
  */
 uint32_t Timer_Remaining(uint8_t timerId);
+
+/**
+ * @brief Allocates a block of memory from the kernel heap.
+ *
+ * This is a system call wrapper around the kernel's memory allocator.
+ * Currently it forwards directly to libc malloc(), but the backend
+ * can be replaced later without changing user code.
+ *
+ * @param size Number of bytes to allocate.
+ * @return Pointer to allocated memory, or NULL on failure.
+ */
+void *kmalloc(size_t size);
+
+/**
+ * @brief Frees a block of memory previously allocated with kmalloc/kcalloc/krealloc.
+ *
+ * This is a system call wrapper around the kernel's memory free routine.
+ * Currently it forwards directly to libc free().
+ *
+ * @param ptr Pointer to memory to free. NULL is ignored.
+ */
+void kfree(void *ptr);
+
+/**
+ * @brief Allocates zero‑initialized memory from the kernel heap.
+ *
+ * This is a system call wrapper around the kernel's calloc implementation.
+ * Currently it forwards directly to libc calloc().
+ *
+ * @param n Number of elements.
+ * @param size Size of each element in bytes.
+ * @return Pointer to allocated memory, or NULL on failure.
+ */
+void *kcalloc(size_t n, size_t size);
+
+/**
+ * @brief Resizes a previously allocated memory block.
+ *
+ * This is a system call wrapper around the kernel's realloc implementation.
+ * Currently it forwards directly to libc realloc().
+ *
+ * @param ptr Pointer to previously allocated memory (may be NULL).
+ * @param newSize New size in bytes.
+ * @return Pointer to resized memory block, or NULL on failure.
+ */
+void *krealloc(void *ptr, size_t newSize);
+
+
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }

@@ -790,7 +790,6 @@ static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
     return ret;
 }
 
-
 KERNAL_FUNCTION
 Mutex *Kernal_Create_Mutex(Thread *maker)
 {
@@ -802,7 +801,8 @@ Mutex *Kernal_Create_Mutex(Thread *maker)
     m->locked = false;
     m->owner = NULL;
 
-    if (maker->ownedCount < 4) {
+    if (maker->ownedCount < 4)
+    {
         maker->ownedMutexes[maker->ownedCount++] = m;
     }
 
@@ -811,7 +811,8 @@ Mutex *Kernal_Create_Mutex(Thread *maker)
 
 void Kernal_Lock_Mutex(Mutex *m)
 {
-    if (!m->locked) {
+    if (!m->locked)
+    {
         m->locked = true;
         m->owner = g_kernel.currentThread;
     }
@@ -819,10 +820,31 @@ void Kernal_Lock_Mutex(Mutex *m)
 
 void Kernal_Unlock_Mutex(Mutex *m)
 {
-    if (m->owner == g_kernel.currentThread) {
+    if (m->owner == g_kernel.currentThread)
+    {
         m->locked = false;
         m->owner = NULL;
     }
+}
+
+void *Kernal_Malloc(size_t size)
+{
+    return malloc(size);
+}
+
+void Kernal_Free(void *ptr)
+{
+    free(ptr);
+}
+
+void *Kernal_Calloc(size_t n, size_t size)
+{
+    return calloc(n, size);
+}
+
+void *Kernal_Realloc(void *ptr, size_t newSize)
+{
+    return realloc(ptr, newSize);
 }
 
 static inline Thread *findThreadByName(const char *target)
@@ -1345,6 +1367,19 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         break;
     }
 
+    case SVC_MALLOC:
+        return (uint32_t)Kernal_Malloc((size_t)arg0);
+
+    case SVC_FREE:
+        Kernal_Free((void *)arg0);
+        return 0;
+
+    case SVC_CALLOC:
+        return (uint32_t)Kernal_Calloc((size_t)arg0, (size_t)arg1);
+
+    case SVC_REALLOC:
+        return (uint32_t)Kernal_Realloc((void *)arg0, (size_t)arg1);
+
     default:
         break;
     }
@@ -1494,7 +1529,7 @@ bool Timer_Reset(uint8_t timerId, uint32_t ms)
     register uint32_t r0 __asm__("r0") = timerId;
     register uint32_t r1 __asm__("r1") = ms;
 
-    __asm volatile("svc %0" :: "i"(SVC_TIMER_RESET), "r"(r0), "r"(r1) : "memory");
+    __asm volatile("svc %0" ::"i"(SVC_TIMER_RESET), "r"(r0), "r"(r1) : "memory");
 
     bool result;
     __asm volatile("mov %0, r0" : "=r"(result));
@@ -1506,7 +1541,7 @@ bool Timer_Cancel(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;
 
-    __asm volatile("svc %0" :: "i"(SVC_TIMER_CANCEL), "r"(r0) : "memory");
+    __asm volatile("svc %0" ::"i"(SVC_TIMER_CANCEL), "r"(r0) : "memory");
 
     bool result;
     __asm volatile("mov %0, r0" : "=r"(result));
@@ -1518,9 +1553,55 @@ uint32_t Timer_Remaining(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;
 
-    __asm volatile("svc %0" :: "i"(SVC_TIMER_REMAINING), "r"(r0) : "memory");
+    __asm volatile("svc %0" ::"i"(SVC_TIMER_REMAINING), "r"(r0) : "memory");
 
     uint32_t remaining;
     __asm volatile("mov %0, r0" : "=r"(remaining));
     return remaining;
+}
+
+API_FUNCTION(kmalloc)
+void *kmalloc(size_t size)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)size;
+
+    __asm volatile("svc %0" ::"i"(SVC_MALLOC), "r"(r0) : "memory");
+
+    void *ptr;
+    __asm volatile("mov %0, r0" : "=r"(ptr));
+    return ptr;
+}
+
+API_FUNCTION(kfree)
+void kfree(void *ptr)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
+
+    __asm volatile("svc %0" ::"i"(SVC_FREE), "r"(r0) : "memory");
+}
+
+API_FUNCTION(kcalloc)
+void *kcalloc(size_t n, size_t size)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)n;
+    register uint32_t r1 __asm__("r1") = (uint32_t)size;
+
+    __asm volatile("svc %0" ::"i"(SVC_CALLOC), "r"(r0), "r"(r1) : "memory");
+
+    void *ptr;
+    __asm volatile("mov %0, r0" : "=r"(ptr));
+    return ptr;
+}
+
+API_FUNCTION(krealloc)
+void *krealloc(void *ptr, size_t newSize)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
+    register uint32_t r1 __asm__("r1") = (uint32_t)newSize;
+
+    __asm volatile("svc %0" ::"i"(SVC_REALLOC), "r"(r0), "r"(r1) : "memory");
+
+    void *newPtr;
+    __asm volatile("mov %0, r0" : "=r"(newPtr));
+    return newPtr;
 }
