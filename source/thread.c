@@ -790,33 +790,39 @@ static HAL_StatusTypeDef Kernel_I2C_Master_TransmitReceive(I2C_Args *a)
     return ret;
 }
 
+
 KERNAL_FUNCTION
 Mutex *Kernal_Create_Mutex(Thread *maker)
 {
     if (!maker || g_kernel.mutexCount >= MAX_MUTEXES)
-    {
         return NULL;
-    }
+
+    Mutex *m = &g_kernel.mutexes[g_kernel.mutexCount++];
 
     m->locked = false;
+    m->owner = NULL;
 
-    if (maker->ownedCount < 4)
-    {
+    if (maker->ownedCount < 4) {
         maker->ownedMutexes[maker->ownedCount++] = m;
     }
 
     return m;
 }
 
-KERNAL_FUNCTION
 void Kernal_Lock_Mutex(Mutex *m)
 {
-    m->locked = true;
+    if (!m->locked) {
+        m->locked = true;
+        m->owner = g_kernel.currentThread;
+    }
 }
-KERNAL_FUNCTION
+
 void Kernal_Unlock_Mutex(Mutex *m)
 {
-    m->locked = false;
+    if (m->owner == g_kernel.currentThread) {
+        m->locked = false;
+        m->owner = NULL;
+    }
 }
 
 static inline Thread *findThreadByName(const char *target)
@@ -1459,7 +1465,7 @@ QueueStatus QUEUE_TRY_RECEIVE(MessageQueue *q, void *msgOut)
     __asm volatile("mov %0, r0" : "=r"(result));
     return result;
 }
-API_FUNCTION(TIMER_CREATE)
+API_FUNCTION(Timer_Create)
 uint8_t Timer_Create(uint32_t ms)
 {
     register uint32_t r0 __asm__("r0") = ms;
@@ -1470,7 +1476,7 @@ uint8_t Timer_Create(uint32_t ms)
     __asm volatile("mov %0, r0" : "=r"(id));
     return id;
 }
-API_FUNCTION(TIMER_IS_DONE)
+API_FUNCTION(Timer_IsDone)
 bool Timer_IsDone(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;
@@ -1482,7 +1488,7 @@ bool Timer_IsDone(uint8_t timerId)
     return done;
 }
 
-API_FUNCTION(TIMER_RESET)
+API_FUNCTION(Timer_Reset)
 bool Timer_Reset(uint8_t timerId, uint32_t ms)
 {
     register uint32_t r0 __asm__("r0") = timerId;
@@ -1495,7 +1501,7 @@ bool Timer_Reset(uint8_t timerId, uint32_t ms)
     return result;
 }
 
-API_FUNCTION(TIMER_CANCEL)
+API_FUNCTION(Timer_Cancel)
 bool Timer_Cancel(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;
@@ -1507,7 +1513,7 @@ bool Timer_Cancel(uint8_t timerId)
     return result;
 }
 
-API_FUNCTION(TIMER_REMAINING)
+API_FUNCTION(Timer_Remaining)
 uint32_t Timer_Remaining(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;

@@ -258,7 +258,8 @@ typedef enum : uint32_t
 
 typedef struct
 {
-    bool locked; // True if locked False if not.
+    bool locked;
+    Thread* owner;
 } Mutex;
 
 typedef struct 
