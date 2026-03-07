@@ -4,9 +4,6 @@
 #include <thread.h>
 #include <debug_printf.h>
 
-    void Kernal_Yield();
-}
-
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
@@ -271,6 +268,11 @@ void MPU_Init(void)
         bool is_bus_fault = (cfsr & 0x0000FF00) != 0;
         bool is_memmanage_fault = (cfsr & 0x000000FF) != 0;
         bool is_forced_hardfault = (hfsr & (1 << 30)) != 0;
+        bool is_context_basically_wiped = false;
+
+        if (g_kernel->currentThread) {
+            if (g_kernel->currentThread->)
+        }
 
         // If it's a recoverable fault, isolate the thread
         if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)

@@ -167,6 +167,9 @@ typedef uint16_t flag16_t; // 16-bit flags
 // Error/status codes
 typedef int status_t; // return codes from threads. and maybe OS functions in the future.
 
+#define MAX_TIMERS_PER_THREAD 4
+
+
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
 #if defined(__GNUC__) || defined(__clang__)
 #define API_FUNCTION(fn)        \
@@ -191,7 +194,9 @@ typedef enum : uint8_t
     THREAD_WAITING_FOR_SERVICE, // Waiting For Service. (not used)
     THREAD_HALTED,              // Thread stopped due to fault or security ban
     THREAD_BLOCKED_SEMAPHORE, // Thread Blocked Waiting For Semaphore
-} ThreadState;
+    THREAD_BLOCKED_QUEUE_SEND,
+    THREAD_BLOCKED_QUEUE_RECV,
+}  ThreadState;
 
 enum : uint8_t
 {
@@ -220,7 +225,7 @@ enum : uint8_t
     // Time Services
     SVC_GET_TICK = 40,
 
-    // Mutex and Semaphore stuff
+    // Mutex & Semaphores
     SVC_MUTEX_CREATE = 50,
     SVC_MUTEX_LOCK = 51,
     SVC_MUTEX_UNLOCK = 52,
@@ -229,6 +234,13 @@ enum : uint8_t
     SVC_SEMAPHORE_GET = 55,
     SVC_SEMAPHORE_SIGNAL = 56,
     SVC_SEMAPHORE_WAIT = 57,
+
+    // Mesage Queues
+    SVC_QUEUE_CREATE = 60, // Creates a queue with a user-provided buffer
+    SVC_QUEUE_SEND = 61, // Sends a message (blocks if full)
+    SVC_QUEUE_RECIVE = 62, // Recives a message (blocks if empty)
+    SVC_QUEUE_TRY_SEND = 63,
+    SVC_QUEUE_TRY_RECEIVE = 64,
 
 };
 
@@ -252,6 +264,48 @@ typedef struct
 typedef struct {
     uint8_t index; // index in the kernals list of semaphores this is pointing to
 } Semaphore_T;
+
+typedef struct
+{
+    MessageQueue *q;   // where to initialize
+    void *buffer;      // backing storage
+    uint16_t msgSize;  // bytes per message
+    uint16_t capacity; // number of messages
+} Queue_CreateArgs;
+
+typedef struct
+{
+    uint32_t *stack;
+    char *name[5];
+} _ThreadPartialArgs;
+
+typedef struct
+{
+    uint8_t *buffer;        // Pointer to raw message storage
+    uint16_t msgSize;       // Size of each message in bytes
+    uint16_t capacity;      // Max number of messages
+
+    uint16_t head;          // Read index
+    uint16_t tail;          // Write index
+    uint16_t count;         // Number of messages currently in queue
+
+    Thread *waitSend;       // Linked list of threads blocked on send
+    Thread *waitRecv;       // Linked list of threads blocked on receive
+
+    uint8_t inUse;          // 0 = free slot, 1 = allocated queue
+} MessageQueue;
+
+typedef enum {
+    QUEUE_OK = 0,
+    QUEUE_FULL = -1,
+    QUEUE_EMPTY = -2
+} QueueStatus;
+
+typedef struct {
+    uint32_t ms_left;
+    bool active;
+    bool finished;
+} SoftTimer;
 
 /**
  *  Full CPU context for an ARM Cortex-M core.
@@ -292,7 +346,7 @@ typedef struct
     uint8_t primask;
     uint8_t basepri;
     uint8_t faultmask;
-    uint8_t usesFPU;          // If nonzero, manage FP context
+    uint8_t usesFPU;          // If nonzero, manage FP context (not used)
     ThreadState state;        // Current thread state
     void (*entry)(void *arg); // Thread entry function
     void *arg;                // Argument to entry function
@@ -303,6 +357,8 @@ typedef struct
     uint8_t ownedCount;       // How many Mutexes Held
     char name[5];             // Thread Name
     int semaphoreIndex; // Index of Semaphore this thread is Waiting On
+    uint8_t queueIndex;   // index into queueList[]
+    SoftTimer timers[MAX_TIMERS_PER_THREAD];
 } Thread;
 
 typedef Thread thread_t;
@@ -575,6 +631,14 @@ typedef struct
     uint32_t firstBit;
 } SPI_NewArgs;
 
+typedef struct
+{
+    MessageQueue *q;
+    void *buffer;
+    uint16_t msgSize;
+    uint16_t capacity;
+} Queue_CreateArgs;
+
 /**
  * @brief Create and initialize a new GPIO pin.
  * @param port GPIO port base (GPIOA, GPIOB, ...).
@@ -675,6 +739,40 @@ void Mutex_Lock(Mutex *m);
  * @param m pointer to the Mutex
  */
 void Mutex_Unlock(Mutex *m);
+
+/**
+ * @brief Create and initialize a message queue.
+ *
+ * The user must supply the queue object and a backing buffer.
+ * The buffer must be at least (msgSize * capacity) bytes.
+ *
+ * @param q         Pointer to a MessageQueue object.
+ * @param buffer    Raw storage for messages.
+ * @param msgSize   Size of each message in bytes.
+ * @param capacity  Maximum number of messages the queue can hold.
+ */
+void QUEUE_CREATE(MessageQueue *q, void *buffer,
+                  uint16_t msgSize, uint16_t capacity);
+
+/**
+ * @brief Send a message to a queue.
+ *
+ * If the queue is full, the calling thread will block until space is available.
+ *
+ * @param q     Pointer to the queue.
+ * @param msg   Pointer to the message to send.
+ */
+void QUEUE_SEND(MessageQueue *q, const void *msg);
+
+/**
+ * @brief Receive a message from a queue.
+ *
+ * If the queue is empty, the calling thread will block until a message arrives.
+ *
+ * @param q        Pointer to the queue.
+ * @param msgOut   Pointer to a buffer where the message will be copied.
+ */
+void QUEUE_RECEIVE(MessageQueue *q, void *msgOut);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }

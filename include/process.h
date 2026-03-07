@@ -44,6 +44,8 @@ typedef struct
 // Forward declaration to avoid circular include
 struct Thread;
 struct Semaphore;
+struct MessageQueue;
+
 
 // -----------------------------------------------------------------------------
 // Contiguous OS data block (no linker script needed)
@@ -71,6 +73,11 @@ typedef struct
     // Semaphores
     Semaphore semaphoreList[MAX_SEMAPHORES]; // list of semaphores
     int seamphoreBitMask; // bit mask to find free semaphores
+
+    // Message Queues
+    MessageQueue queueList[MAX_QUEUES];
+    uint8_t queueCount;
+
 
 } KernelData;
 

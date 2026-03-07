@@ -130,13 +130,6 @@ void Init_Scheduler(void)
     Start_Scheduler(); // Enter the kernel's main scheduling loop
 }
 
-// Here For Some Reason Becuase Linting does not work right if its placed after the API_FUNCTION stuff
-typedef struct
-{
-    uint32_t *stack;
-    char *name[5];
-} _ThreadPartialArgs;
-
 API_FUNCTION(Yield)
 void Yield(void)
 {
@@ -366,6 +359,28 @@ void Scheduler_Tick(void)
                 t->semaphoreIndex = 0;
             }
         }
+
+        // Queue receive wakeups
+        if (t->state == THREAD_BLOCKED_QUEUE_RECV)
+        {
+            MessageQueue *q = &g_kernel.queueList[t->queueIndex];
+            if (q->count > 0)
+            {
+                t->state = THREAD_READY;
+                t->queueIndex = 0;
+            }
+        }
+
+        // Queue send wakeups
+        if (t->state == THREAD_BLOCKED_QUEUE_SEND)
+        {
+            MessageQueue *q = &g_kernel.queueList[t->queueIndex];
+            if (q->count < q->capacity)
+            {
+                t->state = THREAD_READY;
+                t->queueIndex = 0;
+            }
+        }
     }
 
     // Quantum countdown for current thread
@@ -390,20 +405,12 @@ void Kernal_Wipe_Thread(Thread *t)
     t->stackBase = 0;
     t->stackSize = 0;
     t->priority = 0;
-    // Clear Important Registers
-    t->context->R0 = 0;
-    t->context->R1 = 0;
-    t->context->R2 = 0;
-    t->context->R3 = 0;
-    t->context->R4 = 0;
-    t->context->R5 = 0;
-    t->context->R6 = 0;
-    t->context->R7 = 0;
-    t->context->R12 = 0;
-    // Clear LR
-    t->context->LR = 0;
+    t->entry = 0;
+    // clear imporant registers efficently
+    memset(&tcb->context, 0, sizeof(tcb->context));
+
     // Clear Name
-    memset(p.name, 0, sizeof(p.name));
+    memset(p->name, 0, sizeof(p->name));
     return;
 }
 
@@ -878,6 +885,130 @@ void Semaphore_Wait(Semaphore_T *s)
         g_kernel.currentThread.semaphoreIndex = s.index;
     }
 }
+
+KERNAL_FUNCTION
+void Kernel_Queue_Create(MessageQueue *q, void *buffer,
+                         uint16_t msgSize, uint16_t capacity)
+{
+    q->buffer = (uint8_t *)buffer;
+    q->msgSize = msgSize;
+    q->capacity = capacity;
+
+    q->head = 0;
+    q->tail = 0;
+    q->count = 0;
+
+    q->waitSend = NULL;
+    q->waitRecv = NULL;
+
+    q->inUse = 1;
+}
+
+KERNAL_FUNCTION
+void Kernel_Queue_Send(MessageQueue *q, const void *msg)
+{
+    // Fast path: space available
+    if (q->count < q->capacity)
+    {
+        uint8_t *dst = q->buffer + (q->tail * q->msgSize);
+        memcpy(dst, msg, q->msgSize);
+
+        q->tail = (q->tail + 1) % q->capacity;
+        q->count++;
+
+        return;
+    }
+
+    // Full: block current thread
+    Thread *t = g_kernel.currentThread;
+    if (!t)
+        return; // or panic/reset if you want
+
+    // Find queue index for wakeup logic in Scheduler_Tick
+    uint8_t idx = 0xFF;
+    for (uint8_t i = 0; i < MAX_QUEUES; i++)
+    {
+        if (&g_kernel.queueList[i] == q)
+        {
+            idx = i;
+            break;
+        }
+    }
+
+    t->queueIndex = idx;
+    t->state = THREAD_BLOCKED_QUEUE_SEND;
+
+    // Trigger context switch
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+KERNAL_FUNCTION
+void Kernel_Queue_Receive(MessageQueue *q, void *msgOut)
+{
+    // Fast path: data available
+    if (q->count > 0)
+    {
+        uint8_t *src = q->buffer + (q->head * q->msgSize);
+        memcpy(msgOut, src, q->msgSize);
+
+        q->head = (q->head + 1) % q->capacity;
+        q->count--;
+
+        return;
+    }
+
+    // Empty: block current thread
+    Thread *t = g_kernel.currentThread;
+    if (!t)
+        return; // or panic/reset
+
+    uint8_t idx = 0xFF;
+    for (uint8_t i = 0; i < MAX_QUEUES; i++)
+    {
+        if (&g_kernel.queueList[i] == q)
+        {
+            idx = i;
+            break;
+        }
+    }
+
+    t->queueIndex = idx;
+    t->state = THREAD_BLOCKED_QUEUE_RECV;
+
+    // Trigger context switch
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+KERNAL_FUNCTION
+QueueStatus Kernel_Queue_TrySend(MessageQueue *q, const void *msg)
+{
+    if (q->count >= q->capacity)
+        return QUEUE_FULL;
+
+    uint8_t *dst = q->buffer + (q->tail * q->msgSize);
+    memcpy(dst, msg, q->msgSize);
+
+    q->tail = (q->tail + 1) % q->capacity;
+    q->count++;
+
+    return QUEUE_OK;
+}
+
+KERNAL_FUNCTION
+QueueStatus Kernel_Queue_TryReceive(MessageQueue *q, void *msgOut)
+{
+    if (q->count == 0)
+        return QUEUE_EMPTY;
+
+    uint8_t *src = q->buffer + (q->head * q->msgSize);
+    memcpy(msgOut, src, q->msgSize);
+
+    q->head = (q->head + 1) % q->capacity;
+    q->count--;
+
+    return QUEUE_OK;
+}
+
 // Extract SVC immediate from the SVC instruction at (PC - 2)
 static inline uint8_t read_svc_number(uint32_t stacked_pc)
 {
@@ -1038,6 +1169,45 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         break;
     }
 
+    case SVC_QUEUE_CREATE:
+    {
+        const Queue_CreateArgs *a = (const Queue_CreateArgs *)frame[0]; // r0
+        Kernel_Queue_Create(a->q, a->buffer, a->msgSize, a->capacity);
+        break;
+    }
+
+    case SVC_QUEUE_SEND:
+    {
+        MessageQueue *q = (MessageQueue *)frame[0]; // r0
+        const void *msg = (const void *)frame[1];   // r1
+        Kernel_Queue_Send(q, msg);
+        break;
+    }
+
+    case SVC_QUEUE_RECEIVE:
+    {
+        MessageQueue *q = (MessageQueue *)frame[0]; // r0
+        void *msgOut = (void *)frame[1];            // r1
+        Kernel_Queue_Receive(q, msgOut);
+        break;
+    }
+
+    case SVC_QUEUE_TRY_SEND:
+    {
+        MessageQueue *q = (MessageQueue *)frame[0];
+        const void *msg = (const void *)frame[1];
+        frame[0] = Kernel_Queue_TrySend(q, msg);
+        break;
+    }
+
+    case SVC_QUEUE_TRY_RECEIVE:
+    {
+        MessageQueue *q = (MessageQueue *)frame[0];
+        void *msgOut = (void *)frame[1];
+        frame[0] = Kernel_Queue_TryReceive(q, msgOut);
+        break;
+    }
+
     default:
         break;
     }
@@ -1104,4 +1274,57 @@ HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
     register HAL_StatusTypeDef ret __asm__("r0");
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
     return ret;
+}
+API_FUNCTION(QUEUE_CREATE)
+void QUEUE_CREATE(MessageQueue *q, void *buffer,
+                  uint16_t msgSize, uint16_t capacity)
+{
+    Queue_CreateArgs args = {
+        .q = q,
+        .buffer = buffer,
+        .msgSize = msgSize,
+        .capacity = capacity};
+
+    register Queue_CreateArgs *r0 __asm__("r0") = &args;
+    __asm volatile("svc %0" ::"i"(SVC_QUEUE_CREATE), "r"(r0) : "memory");
+}
+API_FUNCTION(QUEUE_SEND)
+void QUEUE_SEND(MessageQueue *q, const void *msg)
+{
+    register MessageQueue *r0 __asm__("r0") = q;
+    register const void *r1 __asm__("r1") = msg;
+
+    __asm volatile("svc %0" ::"i"(SVC_QUEUE_SEND), "r"(r0), "r"(r1) : "memory");
+}
+API_FUNCTION(QUEUE_RECEIVE)
+void QUEUE_RECEIVE(MessageQueue *q, void *msgOut)
+{
+    register MessageQueue *r0 __asm__("r0") = q;
+    register void *r1 __asm__("r1") = msgOut;
+
+    __asm volatile("svc %0" ::"i"(SVC_QUEUE_RECEIVE), "r"(r0), "r"(r1) : "memory");
+}
+API_FUNCTION(QUEUE_TRY_SEND)
+QueueStatus QUEUE_TRY_SEND(MessageQueue *q, const void *msg)
+{
+    register MessageQueue *r0 __asm__("r0") = q;
+    register const void *r1 __asm__("r1") = msg;
+
+    __asm volatile("svc %0" ::"i"(SVC_QUEUE_TRY_SEND), "r"(r0), "r"(r1) : "memory");
+
+    QueueStatus result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
+}
+API_FUNCTION(QUEUE_TRY_RECEIVE)
+QueueStatus QUEUE_TRY_RECEIVE(MessageQueue *q, void *msgOut)
+{
+    register MessageQueue *r0 __asm__("r0") = q;
+    register void *r1 __asm__("r1") = msgOut;
+
+    __asm volatile("svc %0" ::"i"(SVC_QUEUE_TRY_RECEIVE), "r"(r0), "r"(r1) : "memory");
+
+    QueueStatus result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
 }
