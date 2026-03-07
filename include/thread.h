@@ -230,10 +230,6 @@ enum : uint8_t
     SVC_SEMAPHORE_SIGNAL = 56,
     SVC_SEMAPHORE_WAIT = 57,
 
-    
-
-
-
 };
 
 typedef enum : uint32_t

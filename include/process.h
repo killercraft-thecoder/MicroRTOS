@@ -77,55 +77,6 @@ typedef struct
 // Declare the global kernel data (no storage here)
 extern KernelData g_kernel;
 
-// Check for invalid combinations
-#if defined(ENABLE_GLOBAL_DATA) && defined(ENABLE_SMALL_GLOBAL_DATA)
-#error "You cannot define both ENABLE_GLOBAL_DATA and ENABLE_SMALL_GLOBAL_DATA"
-#endif
-
-#ifdef ENABLE_GLOBAL_DATA
-
-typedef struct
-{
-    // 32-bit general-purpose flags — bit meanings are up to user code
-    volatile uint32_t flags;
-
-    // 32-bit timestamp or counter (can be OS_GetTick, downtime,etc)
-    volatile time_t timestamp;
-
-    // 64-bit general-purpose data slots
-    volatile uint64_t data64[4]; // 4 slots for arbitrary 64-bit values
-
-    // 32-bit general-purpose data slots
-    volatile uint32_t data32[8]; // 8 slots for arbitrary 32-bit values
-
-    // 16-bit general-purpose data slots
-    volatile uint16_t data16[8]; // 8 slots for arbitrary 16-bit values
-
-    // 8-bit general-purpose data slots
-    volatile uint8_t data8[16]; // 16 slots for arbitrary 8-bit values
-
-} OS_GlobalShared;
-
-// Declare the global instance
-extern OS_GlobalShared g_shared;
-
-#elif defined(ENABLE_SMALL_GLOBAL_DATA)
-
-typedef struct
-{
-    /**  32-bit general-purpose flags — bit meanings are up to user code */
-    volatile uint16_t flags;
-    /** 32-bit counter */
-    volatile uint32_t counter;
-    /** 32-bit general-purpose data slots */
-    volatile uint32_t data32[4];
-} OS_GlobalShared;
-
-// Declare the global instance
-extern OS_GlobalShared g_shared;
-
-#endif
-
 void Add_Process(Process process);
 void Remove_Process(Process process);
 
