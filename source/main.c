@@ -1,40 +1,117 @@
 #include <thread.h>
 #include <stdint.h>
 
-// Global LFSR state
-volatile uint8_t lfsr = 1;  // Start with non-zero seed
+// ------------------------------------------------------------
+//  GLOBALS
+// ------------------------------------------------------------
 
-// LFSR function: 8-bit, taps at bits 7 and 5 (x^8 + x^6 + x^5 + x^4 + 1)
-uint8_t next_lfsr(uint8_t val) {
-    uint8_t bit = ((val >> 7) ^ (val >> 5) ^ (val >> 4) ^ (val >> 3)) & 1;
-    return (val << 1) | bit;
+// LFSR state
+volatile uint8_t lfsr = 1;
+
+// Message queue buffer
+static uint8_t queueBuffer[16];
+
+// Semaphore
+static semaphore_t sem;
+
+// Timer ID
+static uint8_t timerId;
+
+// ------------------------------------------------------------
+//  UTIL: 8-bit LFSR
+// ------------------------------------------------------------
+uint8_t next_lfsr(uint8_t v) {
+    uint8_t bit = ((v >> 7) ^ (v >> 5) ^ (v >> 4) ^ (v >> 3)) & 1;
+    return (v << 1) | bit;
 }
 
-// Task 1: Continuously update LFSR
-void task_counter(void *) {
+// ------------------------------------------------------------
+//  THREAD 1: LFSR generator
+// ------------------------------------------------------------
+void thread_lfsr(void *) {
     while (1) {
         lfsr = next_lfsr(lfsr);
-        Thread_Sleep(32); // sleep for 32 ms.
+        Thread_Sleep(10);
     }
 }
 
-// Task 2: Exit if LFSR reaches 32
-void task_monitor(void *) {
+// ------------------------------------------------------------
+//  THREAD 2: Queue producer
+// ------------------------------------------------------------
+void thread_producer(void *) {
+    queue_t q;
+    Queue_Init(&q, queueBuffer, sizeof(queueBuffer), 1);
+
     while (1) {
-        if (lfsr == 32) {
-            Thread_Exit(0);  // Exit with status 0
-        }
-       Thread_Sleep(32);
+        uint8_t value = lfsr;
+        Queue_TrySend(&q, &value);   // non-blocking send
+        Thread_Sleep(50);
     }
 }
 
-int main() { 
-    static thread_t thread1, thread2;
-    ALIGN_STACK  uint32_t stack1[256], stack2[256];
+// ------------------------------------------------------------
+//  THREAD 3: Queue consumer + semaphore
+// ------------------------------------------------------------
+void thread_consumer(void *) {
+    queue_t q;
+    Queue_Init(&q, queueBuffer, sizeof(queueBuffer), 1);
 
-    Create_Thread(&thread1, task_counter, nullptr, stack1, sizeof(stack1), 1);
-    Create_Thread(&thread2, task_monitor, nullptr, stack2, sizeof(stack2), 2);
+    while (1) {
+        uint8_t value;
+        if (Queue_TryReceive(&q, &value)) {
+            if (value == 0xAA) {
+                Semaphore_Signal(&sem);
+            }
+        }
+        Thread_Sleep(20);
+    }
+}
 
-    Init_Scheduler();  // Starts the scheduler and never returns
-    return 0;          // Unreachable
+// ------------------------------------------------------------
+//  THREAD 4: Timer + dynamic memory + exit
+// ------------------------------------------------------------
+void thread_timer(void *) {
+    timerId = Timer_Create(1000); // 1 second periodic timer
+
+    while (1) {
+        if (Timer_IsDone(timerId)) {
+            Timer_Reset(timerId);
+
+            // Allocate something just to show kmalloc works
+            uint8_t *buf = (uint8_t *)kmalloc(32);
+            if (buf) {
+                for (int i = 0; i < 32; i++)
+                    buf[i] = lfsr;
+                kfree(buf);
+            }
+
+            // If semaphore was signaled, exit
+            if (Semaphore_Get(&sem)) {
+                Thread_Exit(0);
+            }
+        }
+        Thread_Sleep(5);
+    }
+}
+
+// ------------------------------------------------------------
+//  MAIN
+// ------------------------------------------------------------
+int main() {
+    static thread_t t1, t2, t3, t4;
+
+    ALIGN_STACK uint32_t stack1[256];
+    ALIGN_STACK uint32_t stack2[256];
+    ALIGN_STACK uint32_t stack3[256];
+    ALIGN_STACK uint32_t stack4[256];
+
+    Semaphore_Init(&sem, 0);
+
+    Create_Thread(&t1, thread_lfsr,     nullptr, stack1, sizeof(stack1), 1);
+    Create_Thread(&t2, thread_producer, nullptr, stack2, sizeof(stack2), 2);
+    Create_Thread(&t3, thread_consumer, nullptr, stack3, sizeof(stack3), 2);
+    Create_Thread(&t4, thread_timer,    nullptr, stack4, sizeof(stack4), 3);
+
+    Init_Scheduler(); // never returns
+    return 0;
 }
