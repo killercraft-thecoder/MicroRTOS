@@ -111,7 +111,7 @@ static inline void Restore_Context(Thread *t)
     __set_CONTROL(t->control);
     __ISB(); // ensure CONTROL takes effect before exception return
 }
-}
+
 
 // -----------------------------------------------------------------------------
 // Public API

@@ -291,6 +291,14 @@ typedef struct
     char *name[5];
 } _ThreadPartialArgs;
 
+/**
+ * @typedef MessageQueue
+ * @brief Structure representing a fixed‑size message queue.
+ *
+ * The queue stores messages of uniform size in a circular buffer.
+ * All fields are managed by the kernel; user code should treat this
+ * as an opaque type 
+ */
 typedef struct
 {
     uint8_t *buffer;   // Pointer to raw message storage
@@ -307,6 +315,10 @@ typedef struct
     uint8_t inUse; // 0 = free slot, 1 = allocated queue
 } MessageQueue;
 
+/**
+ * @enum QueueStatus
+ * @brief Return codes for queue operations.
+ */
 typedef enum
 {
     QUEUE_OK = 0,
@@ -787,6 +799,32 @@ void Queue_Send(MessageQueue *q, const void *msg);
  * @param msgOut   Pointer to a buffer where the message will be copied.
  */
 void Queue_Receive(MessageQueue *q, void *msgOut);
+
+/**
+ * @brief Attempt to send a message to the queue (non‑blocking).
+ *
+ * This is a user‑mode wrapper that triggers an SVC call.
+ *
+ * @param q     Pointer to the queue.
+ * @param msg   Pointer to the message data to send.
+ *
+ * @return QUEUE_OK on success, or QUEUE_FULL if the queue is full.
+ */
+QueueStatus Queue_TrySend(MessageQueue *q, const void *msg);
+
+/**
+ * @brief Attempt to receive a message from the queue (non‑blocking).
+ *
+ * This is a user‑mode wrapper that triggers an SVC call.
+ *
+ * @param q         Pointer to the queue.
+ * @param msgOut    Pointer to a buffer where the message will be copied.
+ *
+ * @return QUEUE_OK on success, or QUEUE_EMPTY if the queue is empty.
+ */
+QueueStatus Queue_TryReceive(MessageQueue *q, void *msgOut);
+
+
 
 /**
  * @brief Create a new software timer for the calling thread.

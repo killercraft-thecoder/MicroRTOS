@@ -271,7 +271,12 @@ void MPU_Init(void)
         bool is_context_basically_wiped = false;
 
         if (g_kernel->currentThread) {
-            if (g_kernel->currentThread->)
+            if (g_kernel->currentThread->psp==0 || g_kernel->currentThread->entry==0) {
+                g_kernel->currentThread->state = THREAD_HALTED;
+                Kernal_Wipe_Thread(g_kernel->currentThread);
+                Kernal_Yield();
+                return;
+            }
         }
 
         // If it's a recoverable fault, isolate the thread
