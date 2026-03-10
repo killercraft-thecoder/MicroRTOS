@@ -169,7 +169,6 @@ typedef int status_t; // return codes from threads. and maybe OS functions in th
 
 #define MAX_TIMERS_PER_THREAD 4
 
-
 #define KERNAL_FUNCTION __attribute__((section(".text.kernel")))
 #if defined(__GNUC__) || defined(__clang__)
 #define API_FUNCTION(fn)        \
@@ -193,10 +192,10 @@ typedef enum : uint8_t
     THREAD_TERMINATED,          // Finished, awaiting cleanup
     THREAD_WAITING_FOR_SERVICE, // Waiting For Service. (not used)
     THREAD_HALTED,              // Thread stopped due to fault or security ban
-    THREAD_BLOCKED_SEMAPHORE, // Thread Blocked Waiting For Semaphore
-    THREAD_BLOCKED_QUEUE_SEND,
+    THREAD_BLOCKED_SEMAPHORE,   // Thread Blocked Waiting For Semaphore
+    THREAD_BLOCKED_Queue_Send,
     THREAD_BLOCKED_QUEUE_RECV,
-}  ThreadState;
+} ThreadState;
 
 enum : uint8_t
 {
@@ -228,7 +227,7 @@ enum : uint8_t
     SVC_TIMER_ISDONE = 42,
     SVC_TIMER_RESET = 43,
     SVC_TIMER_CANCEL = 44,
-    SVC_TIMER_REMAINING =  45,
+    SVC_TIMER_REMAINING = 45,
 
     // Mutex & Semaphores
     SVC_MUTEX_CREATE = 50,
@@ -241,8 +240,8 @@ enum : uint8_t
     SVC_SEMAPHORE_WAIT = 57,
 
     // Mesage Queues
-    SVC_QUEUE_CREATE = 60, // Creates a queue with a user-provided buffer
-    SVC_QUEUE_SEND = 61, // Sends a message (blocks if full)
+    SVC_Queue_Create = 60, // Creates a queue with a user-provided buffer
+    SVC_Queue_Send = 61,   // Sends a message (blocks if full)
     SVC_QUEUE_RECIVE = 62, // Recives a message (blocks if empty)
     SVC_QUEUE_TRY_SEND = 63,
     SVC_QUEUE_TRY_RECEIVE = 64,
@@ -265,15 +264,16 @@ typedef enum : uint32_t
 typedef struct
 {
     bool locked;
-    Thread* owner;
+    Thread *owner;
 } Mutex;
 
-typedef struct 
+typedef struct
 {
-    uint8_t value; // if >0 then can be waited on and immditly resume , if equal to 0 then block task. 
+    uint8_t value; // if >0 then can be waited on and immditly resume , if equal to 0 then block task.
 } Semaphore;
 
-typedef struct {
+typedef struct
+{
     uint8_t index; // index in the kernals list of semaphores this is pointing to
 } Semaphore_T;
 
@@ -293,27 +293,29 @@ typedef struct
 
 typedef struct
 {
-    uint8_t *buffer;        // Pointer to raw message storage
-    uint16_t msgSize;       // Size of each message in bytes
-    uint16_t capacity;      // Max number of messages
+    uint8_t *buffer;   // Pointer to raw message storage
+    uint16_t msgSize;  // Size of each message in bytes
+    uint16_t capacity; // Max number of messages
 
-    uint16_t head;          // Read index
-    uint16_t tail;          // Write index
-    uint16_t count;         // Number of messages currently in queue
+    uint16_t head;  // Read index
+    uint16_t tail;  // Write index
+    uint16_t count; // Number of messages currently in queue
 
-    Thread *waitSend;       // Linked list of threads blocked on send
-    Thread *waitRecv;       // Linked list of threads blocked on receive
+    Thread *waitSend; // Linked list of threads blocked on send
+    Thread *waitRecv; // Linked list of threads blocked on receive
 
-    uint8_t inUse;          // 0 = free slot, 1 = allocated queue
+    uint8_t inUse; // 0 = free slot, 1 = allocated queue
 } MessageQueue;
 
-typedef enum {
+typedef enum
+{
     QUEUE_OK = 0,
     QUEUE_FULL = -1,
     QUEUE_EMPTY = -2
 } QueueStatus;
 
-typedef struct {
+typedef struct
+{
     uint32_t ms_left;
     bool active;
     bool finished;
@@ -368,8 +370,8 @@ typedef struct
     Mutex *ownedMutexes[4];   // Mutexes List
     uint8_t ownedCount;       // How many Mutexes Held
     char name[5];             // Thread Name
-    int semaphoreIndex; // Index of Semaphore this thread is Waiting On
-    uint8_t queueIndex;   // index into queueList[]
+    int semaphoreIndex;       // Index of Semaphore this thread is Waiting On
+    uint8_t queueIndex;       // index into queueList[]
     SoftTimer timers[MAX_TIMERS_PER_THREAD];
 } Thread;
 
@@ -763,7 +765,7 @@ void Mutex_Unlock(Mutex *m);
  * @param msgSize   Size of each message in bytes.
  * @param capacity  Maximum number of messages the queue can hold.
  */
-void QUEUE_CREATE(MessageQueue *q, void *buffer,
+void Queue_Create(MessageQueue *q, void *buffer,
                   uint16_t msgSize, uint16_t capacity);
 
 /**
@@ -774,7 +776,7 @@ void QUEUE_CREATE(MessageQueue *q, void *buffer,
  * @param q     Pointer to the queue.
  * @param msg   Pointer to the message to send.
  */
-void QUEUE_SEND(MessageQueue *q, const void *msg);
+void Queue_Send(MessageQueue *q, const void *msg);
 
 /**
  * @brief Receive a message from a queue.
@@ -784,7 +786,7 @@ void QUEUE_SEND(MessageQueue *q, const void *msg);
  * @param q        Pointer to the queue.
  * @param msgOut   Pointer to a buffer where the message will be copied.
  */
-void QUEUE_RECEIVE(MessageQueue *q, void *msgOut);
+void Queue_Receive(MessageQueue *q, void *msgOut);
 
 /**
  * @brief Create a new software timer for the calling thread.
@@ -896,8 +898,6 @@ void *kcalloc(size_t n, size_t size);
  * @return Pointer to resized memory block, or NULL on failure.
  */
 void *krealloc(void *ptr, size_t newSize);
-
-
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
