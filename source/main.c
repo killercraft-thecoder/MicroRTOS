@@ -75,7 +75,7 @@ void thread_timer(void *) {
 
     while (1) {
         if (Timer_IsDone(timerId)) {
-            Timer_Reset(timerId);
+            Timer_Reset(timerId,1000);
 
             // Allocate something just to show kmalloc works
             uint8_t *buf = (uint8_t *)kmalloc(32);
