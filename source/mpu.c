@@ -3,6 +3,7 @@
 #include <process.h>
 #include <thread.h>
 #include <debug_printf.h>
+#include <stdint.h>
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -217,152 +218,153 @@ void MPU_Init(void)
     __ISB();
 }
 
-    // Memory Management Fault
-    KERNAL_FUNCTION
-    void MemManage_Handler(void)
+// Memory Management Fault
+KERNAL_FUNCTION
+void MemManage_Handler(void)
+{
+    Thread *t = g_kernel.currentThread;
+    t->state = ThreadState::THREAD_HALTED;
+    Kernal_Wipe_Thread(t);
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+// Bus Fault
+KERNAL_FUNCTION
+void BusFault_Handler(void)
+{
+    Thread *t = g_kernel.currentThread;
+    t->state = ThreadState::THREAD_HALTED;
+    Kernal_Wipe_Thread(t);
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+// Usage Fault
+KERNAL_FUNCTION
+void UsageFault_Handler(void)
+{
+    Thread *t = g_kernel.currentThread;
+    t->state = ThreadState::THREAD_HALTED;
+    Kernal_Wipe_Thread(t);
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+// Hard Fault
+KERNAL_FUNCTION
+void HardFault_Handler(void)
+{
+    __asm volatile(
+        "TST lr, #4            \n" // Test EXC_RETURN bit 2
+        "ITE EQ                \n"
+        "MRSEQ r0, MSP         \n" // Main Stack Pointer
+        "MRSNE r0, PSP         \n" // Process Stack Pointer
+        "B hardfault_c_handler \n");
+}
+KERNAL_FUNCTION
+void hardfault_c_handler(uint32_t * /*stacked_regs*/)
+{
+    uint32_t cfsr = SCB->CFSR;
+    uint32_t hfsr = SCB->HFSR;
+
+    bool is_usage_fault = (cfsr & 0xFFFF0000) != 0;
+    bool is_bus_fault = (cfsr & 0x0000FF00) != 0;
+    bool is_memmanage_fault = (cfsr & 0x000000FF) != 0;
+    bool is_forced_hardfault = (hfsr & (1 << 30)) != 0;
+
+    if (g_kernel->currentThread)
     {
-        Thread *t = g_kernel.currentThread;
+        if (g_kernel->currentThread->psp == 0 || g_kernel->currentThread->entry == 0)
+        {
+            g_kernel->currentThread->state = THREAD_HALTED;
+            Kernal_Wipe_Thread(g_kernel->currentThread);
+            Kernal_Yield();
+            return;
+        }
+    }
+
+    // If it's a recoverable fault, isolate the thread
+    if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)
+    {
+        if (g_kernel && g_kernel->currentThread)
+        {
+            g_kernel->currentThread->state = THREAD_HALTED;
+            Kernal_Wipe_Thread(g_kernel->currentThread);
+            Kernal_Yield();
+            return;
+        }
+    }
+
+    // If it's not recoverable or no thread context, reset
+    NVIC_SystemReset();
+}
+
+KERNAL_FUNCTION
+void DebugMon_Handler(void)
+{
+    uint32_t dfsr = SCB->DFSR; // read cause
+    SCB->DFSR = dfsr;          // clear flags (write 1s)
+
+    debug_printf("DebugMon fault: DFSR=0x%08lX\n", dfsr);
+
+    if (dfsr & SCB_DFSR_BKPT_Msk)
+    {
+        // Breakpoint instruction triggered
+        debug_printf(" Breakpoint had been triggered.\n");
+    }
+    if (dfsr & SCB_DFSR_VCATCH_Msk)
+    {
+        // Vector catch triggered
+        debug_printf(" Vector Catch had triggered.\n");
+    }
+    if (dfsr & SCB_DFSR_EXTERNAL_Msk)
+    {
+        // External debug request
+        debug_printf(" External Debug Request had triggered.\n");
+    }
+}
+
+KERNAL_FUNCTION
+void FPU_IRQHandler(void)
+{
+    // Read FPSCR to see what caused the fault
+    uint32_t fpscr = __get_FPSCR();
+
+    // Mask of all cumulative exception flags we care about
+    const uint32_t fpu_flags_mask = 0x9F; // bits 0–4 and 7
+
+    // Extract only the exception flags
+    uint32_t flags = fpscr & fpu_flags_mask;
+
+    if (flags != 0)
+    {
+        // Debug log which flags were set
+        debug_printf("FPU fault: FPSCR=0x%08lX\n", fpscr);
+
+        if (flags & (1U << 0))
+            debug_printf("  Invalid Operation (IOC)\n");
+        if (flags & (1U << 1))
+            debug_printf("  Divide by Zero (DZC)\n");
+        if (flags & (1U << 2))
+            debug_printf("  Overflow (OFC)\n");
+        if (flags & (1U << 3))
+            debug_printf("  Underflow (UFC)\n");
+        if (flags & (1U << 4))
+            debug_printf("  Inexact (IXC)\n");
+        if (flags & (1U << 7))
+            debug_printf("  Input Denormal (IDC)\n");
+    }
+
+    // Clear exception flags (write-1-to-clear)
+    __set_FPSCR(fpscr & fpu_flags_mask);
+
+    // Halt the current thread like other fault handlers
+    Thread *t = g_kernel.currentThread;
+    if (t)
+    {
         t->state = ThreadState::THREAD_HALTED;
         Kernal_Wipe_Thread(t);
-        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger PendSV for reschedule
     }
-
-    // Bus Fault
-    KERNAL_FUNCTION
-    void BusFault_Handler(void)
-    {
-        Thread *t = g_kernel.currentThread;
-        t->state = ThreadState::THREAD_HALTED;
-        Kernal_Wipe_Thread(t);
-        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-    }
-
-    // Usage Fault
-    KERNAL_FUNCTION
-    void UsageFault_Handler(void)
-    {
-        Thread *t = g_kernel.currentThread;
-        t->state = ThreadState::THREAD_HALTED;
-        Kernal_Wipe_Thread(t);
-        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-    }
-
-    // Hard Fault
-    KERNAL_FUNCTION
-    void HardFault_Handler(void)
-    {
-        __asm volatile(
-            "TST lr, #4            \n" // Test EXC_RETURN bit 2
-            "ITE EQ                \n"
-            "MRSEQ r0, MSP         \n" // Main Stack Pointer
-            "MRSNE r0, PSP         \n" // Process Stack Pointer
-            "B hardfault_c_handler \n");
-    }
-    KERNAL_FUNCTION
-    void hardfault_c_handler(uint32_t * /*stacked_regs*/)
-    {
-        uint32_t cfsr = SCB->CFSR;
-        uint32_t hfsr = SCB->HFSR;
-
-        bool is_usage_fault = (cfsr & 0xFFFF0000) != 0;
-        bool is_bus_fault = (cfsr & 0x0000FF00) != 0;
-        bool is_memmanage_fault = (cfsr & 0x000000FF) != 0;
-        bool is_forced_hardfault = (hfsr & (1 << 30)) != 0;
-        bool is_context_basically_wiped = false;
-
-        if (g_kernel->currentThread) {
-            if (g_kernel->currentThread->psp==0 || g_kernel->currentThread->entry==0) {
-                g_kernel->currentThread->state = THREAD_HALTED;
-                Kernal_Wipe_Thread(g_kernel->currentThread);
-                Kernal_Yield();
-                return;
-            }
-        }
-
-        // If it's a recoverable fault, isolate the thread
-        if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)
-        {
-            if (g_kernel && g_kernel->currentThread)
-            {
-                g_kernel->currentThread->state = THREAD_HALTED;
-                Kernal_Wipe_Thread(g_kernel->currentThread);
-                Kernal_Yield();
-                return;
-            }
-        }
-
-        // If it's not recoverable or no thread context, reset
-        NVIC_SystemReset();
-    }
-
-    KERNAL_FUNCTION
-    void DebugMon_Handler(void)
-    {
-        uint32_t dfsr = SCB->DFSR; // read cause
-        SCB->DFSR = dfsr;          // clear flags (write 1s)
-
-        debug_printf("DebugMon fault: DFSR=0x%08lX\n", dfsr);
-
-        if (dfsr & SCB_DFSR_BKPT_Msk)
-        {
-            // Breakpoint instruction triggered
-            debug_printf(" Breakpoint had been triggered.\n");
-        }
-        if (dfsr & SCB_DFSR_VCATCH_Msk)
-        {
-            // Vector catch triggered
-            debug_printf(" Vector Catch had triggered.\n");
-        }
-        if (dfsr & SCB_DFSR_EXTERNAL_Msk)
-        {
-            // External debug request
-            debug_printf(" External Debug Request had triggered.\n");
-        }
-    }
-
-    KERNAL_FUNCTION
-    void FPU_IRQHandler(void)
-    {
-        // Read FPSCR to see what caused the fault
-        uint32_t fpscr = __get_FPSCR();
-
-        // Mask of all cumulative exception flags we care about
-        const uint32_t fpu_flags_mask = 0x9F; // bits 0–4 and 7
-
-        // Extract only the exception flags
-        uint32_t flags = fpscr & fpu_flags_mask;
-
-        if (flags != 0)
-        {
-            // Debug log which flags were set
-            debug_printf("FPU fault: FPSCR=0x%08lX\n", fpscr);
-
-            if (flags & (1U << 0))
-                debug_printf("  Invalid Operation (IOC)\n");
-            if (flags & (1U << 1))
-                debug_printf("  Divide by Zero (DZC)\n");
-            if (flags & (1U << 2))
-                debug_printf("  Overflow (OFC)\n");
-            if (flags & (1U << 3))
-                debug_printf("  Underflow (UFC)\n");
-            if (flags & (1U << 4))
-                debug_printf("  Inexact (IXC)\n");
-            if (flags & (1U << 7))
-                debug_printf("  Input Denormal (IDC)\n");
-        }
-
-        // Clear exception flags (write-1-to-clear)
-        __set_FPSCR(fpscr & fpu_flags_mask);
-
-        // Halt the current thread like other fault handlers
-        Thread *t = g_kernel.currentThread;
-        if (t)
-        {
-            t->state = ThreadState::THREAD_HALTED;
-            Kernal_Wipe_Thread(t);
-            SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; // trigger PendSV for reschedule
-        }
-    }
+}
 
 KERNAL_FUNCTION
 void MPU_ConfigureRegion(uint8_t regionNumber, const MPURegion *region)
