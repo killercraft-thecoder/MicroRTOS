@@ -7,6 +7,7 @@
 
 #define __FPU_PRESENT 1U
 
+
 #if defined(__GNUC__) || defined(__clang__)
 #define ALIGNED(X) __attribute__((aligned(X)))
 #elif defined(_MSC_VER)
@@ -41,6 +42,11 @@ typedef struct
  * @note semaphores are shared globally
 */
 #define MAX_SEMAPHORES 24
+
+/**
+ * @brief Maximum number of filesystem drivers the kernal can track at once
+ */
+#define MAX_FS_DRIVERS 2
 
 // Forward declaration to avoid circular include
 struct Thread;
@@ -83,6 +89,13 @@ typedef struct
     // TLSF Allocator
     // -------------------
     TlsfControl tlsf;
+
+
+    // ---------------
+    //  File System
+    // ---------------
+
+    static FileSystemDriver *fsDrivers[MAX_FS_DRIVERS];
 
 
 

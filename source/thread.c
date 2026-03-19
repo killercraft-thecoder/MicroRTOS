@@ -894,8 +894,6 @@ void *Kernal_Realloc(void *ptr, size_t newSize)
     return newPtr;
 }
 
-
-
 static inline Thread *findThreadByName(const char *target)
 {
     for (int i = 0; i < MAX_THREADS; i++)
@@ -1176,6 +1174,100 @@ uint32_t Kernel_Timer_Remaining(Thread *t, uint8_t id)
     return tm->ms_left;
 }
 
+extern void *__kernel_text_start__;
+extern void *__kernel_text_end__;
+extern void *__api_table_start__;
+extern void *__api_table_end__;
+extern void *__heap_start__;
+extern void *__heap_end__;
+extern void *__stack_start__;
+extern void *__stack_end__;
+
+static inline bool Kernal_IsValidPointer(const void *ptr)
+{
+    if (!ptr)
+        return false;
+
+    uintptr_t p = (uintptr_t)ptr;
+
+    uintptr_t text_start = (uintptr_t)&__kernel_text_start__;
+    uintptr_t text_end = (uintptr_t)&__kernel_text_end__;
+    uintptr_t api_start = (uintptr_t)&__api_table_start__;
+    uintptr_t api_end = (uintptr_t)&__api_table_end__;
+    uintptr_t heap_start = (uintptr_t)&__heap_start__;
+    uintptr_t heap_end = (uintptr_t)&__heap_end__;
+    uintptr_t stack_start = (uintptr_t)&__stack_start__;
+    uintptr_t stack_end = (uintptr_t)&__stack_end__;
+
+    // Normal ascending ranges
+    if (p >= text_start && p < text_end)
+        return true;
+
+    if (p >= api_start && p < api_end)
+        return true;
+
+    if (p >= heap_start && p < heap_end)
+        return true;
+
+    // Stack may grow downward or upward depending on your linker script.
+    // We handle both cases safely:
+    if (stack_start < stack_end)
+    {
+        if (p >= stack_start && p < stack_end)
+            return true;
+    }
+    else
+    {
+        if (p >= stack_end && p < stack_start)
+            return true;
+    }
+
+    return false;
+}
+
+int Kernal_VFS_RegisterDriver(FileSystemDriver *driver)
+{
+    if (!driver)
+        return -1;
+
+    // Validate all function pointers
+    if (!Kernal_IsValidPointer(driver->open)  ||
+        !Kernal_IsValidPointer(driver->close) ||
+        !Kernal_IsValidPointer(driver->read)  ||
+        !Kernal_IsValidPointer(driver->write) ||
+        !Kernal_IsValidPointer(driver->list))
+    {
+        return -1;
+    }
+
+    return VFS_RegisterDriver(driver);
+}
+
+int Kernal_FS_Open(const char *path, int flags)
+{
+    return VFS_Open(path, flags);
+}
+
+int Kernal_FS_Close(int fd)
+{
+    return VFS_Close(fd);
+}
+
+int Kernal_FS_Read(int fd, void *buffer, int size)
+{
+    return VFS_Read(fd, buffer, size);
+}
+
+int Kernal_FS_Write(int fd, const void *buffer, int size)
+{
+    return VFS_Write(fd, buffer, size);
+}
+
+int Kernal_FS_List(const char *path, char *outBuffer, int maxLen)
+{
+    return VFS_List(path, outBuffer, maxLen);
+}
+
 // Extract SVC immediate from the SVC instruction at (PC - 2)
 static inline uint8_t read_svc_number(uint32_t stacked_pc)
 {
@@ -1448,6 +1540,67 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = (uint32_t)ptr;
         break;
     }
+
+    case SVC_FS_OPEN:
+    {
+        const char *path = (const char *)frame[0]; // r0
+        int flags = (int)frame[1];                 // r1
+
+        int fd = Kernal_FS_Open(path, flags);
+        frame[0] = (uint32_t)fd; // return in r0
+        break;
+    }
+
+    case SVC_FS_CLOSE:
+    {
+        int fd = (int)frame[0]; // r0
+
+        int result = Kernal_FS_Close(fd);
+        frame[0] = (uint32_t)result; // return in r0
+        break;
+    }
+
+    case SVC_FS_READ:
+    {
+        int fd = (int)frame[0];          // r0
+        void *buffer = (void *)frame[1]; // r1
+        int size = (int)frame[2];        // r2
+
+        int bytes = Kernal_FS_Read(fd, buffer, size);
+        frame[0] = (uint32_t)bytes; // return in r0
+        break;
+    }
+
+    case SVC_FS_WRITE:
+    {
+        int fd = (int)frame[0];                      // r0
+        const void *buffer = (const void *)frame[1]; // r1
+        int size = (int)frame[2];                    // r2
+
+        int bytes = Kernal_FS_Write(fd, buffer, size);
+        frame[0] = (uint32_t)bytes; // return in r0
+        break;
+    }
+
+    case SVC_FS_LIST:
+    {
+        const char *path = (const char *)frame[0]; // r0
+        char *outBuffer = (char *)frame[1];        // r1
+        int maxLen = (int)frame[2];                // r2
+
+        int bytes = Kernal_FS_List(path, outBuffer, maxLen);
+        frame[0] = (uint32_t)bytes; // return in r0
+        break;
+    }
+
+    case SVC_VFS_REGISTER_DRIVER:
+    {
+        FileSystemDriver *drv = (FileSystemDriver *)frame[0]; // r0
+        int result = Kernal_VFS_RegisterDriver(drv);
+        frame[0] = (uint32_t)result;
+        break;
+    }
+
     default:
         break;
     }
@@ -1672,4 +1825,83 @@ void *Realloc(void *ptr, size_t newSize)
     void *newPtr;
     __asm volatile("mov %0, r0" : "=r"(newPtr));
     return newPtr;
+}
+
+API_FUNCTION(FS_Open)
+int FS_Open(const char *path, int flags)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)path;
+    register uint32_t r1 __asm__("r1") = (uint32_t)flags;
+
+    __asm volatile("svc %0" ::"i"(SVC_FS_OPEN), "r"(r0), "r"(r1) : "memory");
+
+    int fd;
+    __asm volatile("mov %0, r0" : "=r"(fd));
+    return fd;
+}
+
+API_FUNCTION(FS_Close)
+int FS_Close(int fd)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)fd;
+
+    __asm volatile("svc %0" ::"i"(SVC_FS_CLOSE), "r"(r0) : "memory");
+
+    int result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
+}
+
+API_FUNCTION(FS_Read)
+int FS_Read(int fd, void *buffer, int size)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)fd;
+    register uint32_t r1 __asm__("r1") = (uint32_t)buffer;
+    register uint32_t r2 __asm__("r2") = (uint32_t)size;
+
+    __asm volatile("svc %0" ::"i"(SVC_FS_READ), "r"(r0), "r"(r1), "r"(r2) : "memory");
+
+    int bytes;
+    __asm volatile("mov %0, r0" : "=r"(bytes));
+    return bytes;
+}
+
+API_FUNCTION(FS_Write)
+int FS_Write(int fd, const void *buffer, int size)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)fd;
+    register uint32_t r1 __asm__("r1") = (uint32_t)buffer;
+    register uint32_t r2 __asm__("r2") = (uint32_t)size;
+
+    __asm volatile("svc %0" ::"i"(SVC_FS_WRITE), "r"(r0), "r"(r1), "r"(r2) : "memory");
+
+    int bytes;
+    __asm volatile("mov %0, r0" : "=r"(bytes));
+    return bytes;
+}
+
+API_FUNCTION(FS_List)
+int FS_List(const char *path, char *outBuffer, int maxLen)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)path;
+    register uint32_t r1 __asm__("r1") = (uint32_t)outBuffer;
+    register uint32_t r2 __asm__("r2") = (uint32_t)maxLen;
+
+    __asm volatile("svc %0" ::"i"(SVC_FS_LIST), "r"(r0), "r"(r1), "r"(r2) : "memory");
+
+    int bytes;
+    __asm volatile("mov %0, r0" : "=r"(bytes));
+    return bytes;
+}
+
+API_FUNCTION(VFS_RegisterDriver)
+int VFS_RegisterDriver(FileSystemDriver *driver)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)driver;
+
+    __asm volatile("svc %0" ::"i"(SVC_VFS_REGISTER_DRIVER), "r"(r0) : "memory");
+
+    int result;
+    __asm volatile("mov %0, r0" : "=r"(result));
+    return result;
 }

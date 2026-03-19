@@ -253,6 +253,14 @@ enum : uint8_t
     SVC_CALLOC = 72,
     SVC_REALLOC = 73,
 
+    // Filesystem Services
+    SVC_FS_OPEN = 80,
+    SVC_FS_CLOSE = 81,
+    SVC_FS_READ = 82,
+    SVC_FS_WRITE = 83,
+    SVC_FS_LIST = 84,
+    SVC_VFS_REGISTER_DRIVER = 85,
+
 };
 
 typedef enum : uint32_t
@@ -940,6 +948,65 @@ void *Calloc(size_t n, size_t size);
  * @return Pointer to resized memory block, or NULL on failure.
  */
 void *Realloc(void *ptr, size_t newSize);
+
+// -----------------------------------------------------------------------------
+// User-Facing FileSystem API
+// -----------------------------------------------------------------------------
+
+API_FUNCTION(FS_Open)
+/**
+ * @brief Open a file or resource at the given path.
+ * @param path Path to the file.
+ * @param flags Access mode flags.
+ * @return File descriptor, or negative on error.
+ */
+int FS_Open(const char *path, int flags);
+
+API_FUNCTION(FS_Close)
+/**
+ * @brief Close an open file descriptor.
+ * @param fd File descriptor to close.
+ * @return 0 on success, negative on error.
+ */
+int FS_Close(int fd);
+
+API_FUNCTION(FS_Read)
+/**
+ * @brief Read data from an open file.
+ * @param fd File descriptor.
+ * @param buffer Destination buffer.
+ * @param size Maximum number of bytes to read.
+ * @return Number of bytes read, or negative on error.
+ */
+int FS_Read(int fd, void *buffer, int size);
+
+API_FUNCTION(FS_Write)
+/**
+ * @brief Write data to an open file.
+ * @param fd File descriptor.
+ * @param buffer Source buffer.
+ * @param size Number of bytes to write.
+ * @return Number of bytes written, or negative on error.
+ */
+int FS_Write(int fd, const void *buffer, int size);
+
+API_FUNCTION(FS_List)
+/**
+ * @brief List directory contents into a buffer.
+ * @param path Directory path.
+ * @param outBuffer Output buffer for listing.
+ * @param maxLen Maximum buffer length.
+ * @return Number of bytes written, or negative on error.
+ */
+int FS_List(const char *path, char *outBuffer, int maxLen);
+
+API_FUNCTION(VFS_RegisterDriver)
+/**
+ * @brief Register a filesystem driver with the VFS.
+ * @param driver Pointer to a FileSystemDriver structure.
+ * @return 0 on success, negative on error.
+ */
+int VFS_RegisterDriver(FileSystemDriver *driver);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }
