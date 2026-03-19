@@ -68,7 +68,7 @@ SECTIONS
   {
     . = ALIGN(4);
     __heap_start__ = .;
-    . = . + 0x1000;       /* 4 KB heap */
+    . = . + 0x10000;       /* 64 KB heap */
     . = ALIGN(4);
     __heap_end__ = .;
   } >RAM

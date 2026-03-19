@@ -66,7 +66,7 @@ SECTIONS
   .heap (COPY):
   {
     __heap_start__ = .;
-    . = . + 0x1000;       /* 4 KB heap */
+    . = . + 0x4000;       /* 16 KB heap */
     __heap_end__ = .;
   } >RAM
 
