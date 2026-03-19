@@ -326,6 +326,10 @@ typedef enum
     QUEUE_EMPTY = -2
 } QueueStatus;
 
+/**
+ * @enum SoftTimer
+ * @brief information used for software timers
+ */
 typedef struct
 {
     uint32_t ms_left;
@@ -450,8 +454,7 @@ void Yield(void);
  */
 void Scheduler_Tick(void);
 
-extern "C"
-{
+
 
     /**
      * @brief Select the next thread to run.
@@ -463,7 +466,7 @@ extern "C"
      *         or NULL if no threads are ready.
      */
     thread_t *Scheduler_GetNextThread(void);
-}
+
 
 /**
  * @brief Exit Current Thread
@@ -901,7 +904,7 @@ uint32_t Timer_Remaining(uint8_t timerId);
  * @param size Number of bytes to allocate.
  * @return Pointer to allocated memory, or NULL on failure.
  */
-void *kmalloc(size_t size);
+void *Malloc(size_t size);
 
 /**
  * @brief Frees a block of memory previously allocated with kmalloc/kcalloc/krealloc.
@@ -911,7 +914,7 @@ void *kmalloc(size_t size);
  *
  * @param ptr Pointer to memory to free. NULL is ignored.
  */
-void kfree(void *ptr);
+void Free(void *ptr);
 
 /**
  * @brief Allocates zero‑initialized memory from the kernel heap.
@@ -923,7 +926,7 @@ void kfree(void *ptr);
  * @param size Size of each element in bytes.
  * @return Pointer to allocated memory, or NULL on failure.
  */
-void *kcalloc(size_t n, size_t size);
+void *Calloc(size_t n, size_t size);
 
 /**
  * @brief Resizes a previously allocated memory block.
@@ -935,7 +938,7 @@ void *kcalloc(size_t n, size_t size);
  * @param newSize New size in bytes.
  * @return Pointer to resized memory block, or NULL on failure.
  */
-void *krealloc(void *ptr, size_t newSize);
+void *Realloc(void *ptr, size_t newSize);
 
 // How Many Milliseconds since boot
 static inline time_t OS_runtimeMS(void) { return OS_GetTick(); }

@@ -1560,8 +1560,8 @@ uint32_t Timer_Remaining(uint8_t timerId)
     return remaining;
 }
 
-API_FUNCTION(kmalloc)
-void *kmalloc(size_t size)
+API_FUNCTION(Malloc)
+void *Malloc(size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)size;
 
@@ -1572,16 +1572,16 @@ void *kmalloc(size_t size)
     return ptr;
 }
 
-API_FUNCTION(kfree)
-void kfree(void *ptr)
+API_FUNCTION(Free)
+void Free(void *ptr)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
 
     __asm volatile("svc %0" ::"i"(SVC_FREE), "r"(r0) : "memory");
 }
 
-API_FUNCTION(kcalloc)
-void *kcalloc(size_t n, size_t size)
+API_FUNCTION(Calloc)
+void *Calloc(size_t n, size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)n;
     register uint32_t r1 __asm__("r1") = (uint32_t)size;
@@ -1593,8 +1593,8 @@ void *kcalloc(size_t n, size_t size)
     return ptr;
 }
 
-API_FUNCTION(krealloc)
-void *krealloc(void *ptr, size_t newSize)
+API_FUNCTION(Realloc)
+void *Realloc(void *ptr, size_t newSize)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
     register uint32_t r1 __asm__("r1") = (uint32_t)newSize;
