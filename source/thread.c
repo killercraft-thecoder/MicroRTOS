@@ -249,6 +249,9 @@ void Start_Scheduler(void)
     // Set up SysTick for 1 ms ticks using CMSIS clock info
     Init_SysTick();
 
+    // Initialize TLSF using linker-provided heap region
+    TLSF_Init(&g_kernel.tlsf);
+
     // Pick first thread
     g_kernel.currentIndex = 0;
     g_kernel.currentThread = g_kernel.threadList[g_kernel.currentIndex];
@@ -828,23 +831,70 @@ void Kernal_Unlock_Mutex(Mutex *m)
 
 void *Kernal_Malloc(size_t size)
 {
-    return malloc(size);
+    if (size == 0)
+    {
+        debug_printf("[KERNEL] Malloc(0) ignored\n");
+        return NULL;
+    }
+
+    void *ptr = TLSF_Malloc(&g_kernel.tlsf, size);
+    if (!ptr)
+    {
+        debug_printf("[KERNEL] Malloc failed: size=%u\n", (unsigned)size);
+    }
+    return ptr;
 }
 
 void Kernal_Free(void *ptr)
 {
-    free(ptr);
+    if (!ptr)
+    {
+        debug_printf("[KERNEL] Free(NULL) ignored\n");
+        return;
+    }
+
+    TLSF_Free(&g_kernel.tlsf, ptr);
 }
 
 void *Kernal_Calloc(size_t n, size_t size)
 {
-    return calloc(n, size);
+    if (n == 0 || size == 0)
+    {
+        debug_printf("[KERNEL] Calloc(%u, %u) ignored\n",
+                     (unsigned)n, (unsigned)size);
+        return NULL;
+    }
+
+    void *ptr = TLSF_Calloc(&g_kernel.tlsf, n, size);
+    if (!ptr)
+    {
+        debug_printf("[KERNEL] Calloc failed: n=%u size=%u\n",
+                     (unsigned)n, (unsigned)size);
+    }
+    return ptr;
 }
 
 void *Kernal_Realloc(void *ptr, size_t newSize)
 {
-    return realloc(ptr, newSize);
+    if (!ptr)
+        return Kernal_Malloc(newSize);
+
+    if (newSize == 0)
+    {
+        Kernal_Free(ptr);
+        return NULL;
+    }
+
+    void *newPtr = TLSF_Realloc(&g_kernel.tlsf, ptr, newSize);
+    if (!newPtr)
+    {
+        debug_printf("[KERNEL] Realloc failed: ptr=%p newSize=%u\n",
+                     ptr, (unsigned)newSize);
+    }
+    return newPtr;
 }
+
+
 
 static inline Thread *findThreadByName(const char *target)
 {

@@ -10,8 +10,8 @@
  *       user-callable, SVC-backed services in one place.
  */
 
-#ifndef THREAD_H
-#define THREAD_H
+#ifndef MICRO_RTOS_THREAD_H
+#define MICRO_RTOS_THREAD_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -19,7 +19,8 @@
 #include <CMSIS/stm32f4xx_hal_uart.h>
 #include <CMSIS/stm32f4xx_hal_spi.h>
 #include <CMSIS/core_cm4.h>
-#include <mustinclude.h>
+#include "mustinclude.h"
+#include "tlsf.h"
 
 typedef struct
 {

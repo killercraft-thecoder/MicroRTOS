@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "thread.h"
+#include "tlsf.h"
 
 #define __FPU_PRESENT 1U
 
@@ -77,6 +78,13 @@ typedef struct
     // Message Queues
     MessageQueue queueList[MAX_QUEUES];
     uint8_t queueCount;
+
+    // -------------------
+    // TLSF Allocator
+    // -------------------
+    TlsfControl tlsf;
+
+
 
 
 } KernelData;
