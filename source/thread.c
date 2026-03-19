@@ -112,7 +112,6 @@ static inline void Restore_Context(Thread *t)
     __ISB(); // ensure CONTROL takes effect before exception return
 }
 
-
 // -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
@@ -1366,20 +1365,39 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = Kernel_Timer_Remaining(t, id);
         break;
     }
-
     case SVC_MALLOC:
-        return (uint32_t)Kernal_Malloc((size_t)arg0);
+    {
+        size_t size = (size_t)frame[0]; // r0
+        void *ptr = Kernal_Malloc(size);
+        frame[0] = (uint32_t)ptr; // return in r0
+        break;
+    }
 
     case SVC_FREE:
-        Kernal_Free((void *)arg0);
-        return 0;
+    {
+        void *ptr = (void *)frame[0]; // r0
+        Kernal_Free(ptr);
+        // no return value
+        break;
+    }
 
     case SVC_CALLOC:
-        return (uint32_t)Kernal_Calloc((size_t)arg0, (size_t)arg1);
+    {
+        size_t n = (size_t)frame[0];    // r0
+        size_t size = (size_t)frame[1]; // r1
+        void *ptr = Kernal_Calloc(n, size);
+        frame[0] = (uint32_t)ptr;
+        break;
+    }
 
     case SVC_REALLOC:
-        return (uint32_t)Kernal_Realloc((void *)arg0, (size_t)arg1);
-
+    {
+        void *old = (void *)frame[0];   // r0
+        size_t size = (size_t)frame[1]; // r1
+        void *ptr = Kernal_Realloc(old, size);
+        frame[0] = (uint32_t)ptr;
+        break;
+    }
     default:
         break;
     }
