@@ -1321,7 +1321,7 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
         // Copy the name into the Thread struct
         Thread *t = (Thread *)frame[0];
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 8; i++)
         {
             t->name[i] = extra->name[i];
         }
@@ -1334,7 +1334,7 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         Kernal_Thread_Exit(frame[0]);
         break;
     case SVC_GPIO_WRITE:
-        Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinState)frame[2]);
+        Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinStnate)frame[2]);
         break;
     case SVC_GPIO_READ:
         frame[0] = Kernel_GPIO_Read((GPIO_TypeDef *)frame[0], (uint16_t)frame[1]);

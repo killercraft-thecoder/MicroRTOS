@@ -297,7 +297,7 @@ typedef struct
 typedef struct
 {
     uint32_t *stack;
-    char *name[5];
+    char *name[8];
 } _ThreadPartialArgs;
 
 /**
@@ -306,7 +306,7 @@ typedef struct
  *
  * The queue stores messages of uniform size in a circular buffer.
  * All fields are managed by the kernel; user code should treat this
- * as an opaque type 
+ * as an opaque type
  */
 typedef struct
 {
@@ -394,7 +394,7 @@ typedef struct
     status_t exit_code;       // Exit Code
     Mutex *ownedMutexes[4];   // Mutexes List
     uint8_t ownedCount;       // How many Mutexes Held
-    char name[5];             // Thread Name
+    char name[8];             // Thread Name
     int semaphoreIndex;       // Index of Semaphore this thread is Waiting On
     uint8_t queueIndex;       // index into queueList[]
     SoftTimer timers[MAX_TIMERS_PER_THREAD];
@@ -463,19 +463,16 @@ void Yield(void);
  */
 void Scheduler_Tick(void);
 
-
-
-    /**
-     * @brief Select the next thread to run.
-     *
-     * Implements the scheduling policy to
-     * choose the next ready thread from the scheduler's ready list.
-     *
-     * @return Pointer to the Thread control block of the next thread to run,
-     *         or NULL if no threads are ready.
-     */
-    thread_t *Scheduler_GetNextThread(void);
-
+/**
+ * @brief Select the next thread to run.
+ *
+ * Implements the scheduling policy to
+ * choose the next ready thread from the scheduler's ready list.
+ *
+ * @return Pointer to the Thread control block of the next thread to run,
+ *         or NULL if no threads are ready.
+ */
+thread_t *Scheduler_GetNextThread(void);
 
 /**
  * @brief Exit Current Thread
@@ -835,8 +832,6 @@ QueueStatus Queue_TrySend(MessageQueue *q, const void *msg);
  * @return QUEUE_OK on success, or QUEUE_EMPTY if the queue is empty.
  */
 QueueStatus Queue_TryReceive(MessageQueue *q, void *msgOut);
-
-
 
 /**
  * @brief Create a new software timer for the calling thread.
