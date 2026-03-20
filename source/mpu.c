@@ -1,8 +1,8 @@
-#include <CMSIS/mpu_armv7.h>
-#include <CMSIS/core_cm4>
-#include <process.h>
-#include <thread.h>
-#include <debug_printf.h>
+#include "CMSIS/mpu_armv7.h"
+#include "CMSIS/core_cm4.h"
+#include "process.h"
+#include "thread.h"
+#include "debug_printf.h"
 #include <stdint.h>
 
 // -----------------------------------------------------------------------------
@@ -134,6 +134,10 @@ inline uint32_t MPU_GetRegionCount(void)
 }
 
 extern uint32_t __kernel_text_start__, __kernel_text_end__;
+extern uint32_t __heap_start__;
+extern uint32_t __heap_end__;
+extern uint32_t __stack_start__;
+extern uint32_t __stack_end__;
 
 KERNAL_FUNCTION
 void MPU_AddKernelFlashExecuteOnly(void)
@@ -200,6 +204,47 @@ void MPU_Init(void)
             ));
 
     MPU_AddKernelFlashExecuteOnly();
+
+    // -------------------------------
+    // Region 1: User heap (RW, XN)
+    // -------------------------------
+    uint32_t heap_base = (uint32_t)&__heap_start__;
+    uint32_t heap_size = (uint32_t)&__heap_end__ - (uint32_t)&__heap_start__;
+
+    // heap_size must be rounded to a valid MPU size; assume mpu_size_encoding() handles that
+    ARM_MPU_SetRegionEx(
+        1,         // Region number
+        heap_base, // Base address
+        ARM_MPU_RASR(
+            1,                                    // XN = 1 (no execute)
+            mpu_attr_os_data_priv_rw_unpriv_rw(), // Priv RW, Unpriv RW
+            0,                                    // TEX
+            0,                                    // Shareable
+            0,                                    // Cacheable
+            0,                                    // Bufferable
+            mpu_size_encoding(heap_size),         // Region size
+            1                                     // Enable
+            ));
+
+            // -------------------------------
+            // Region 2: Kernel stack (RW, XN, priv only)
+            // -------------------------------
+            uint32_t stack_base = (uint32_t)&__stack_start__;
+            uint32_t stack_size = (uint32_t)&__stack_end__ - (uint32_t)&__stack_start__;
+            
+            ARM_MPU_SetRegionEx(
+                2,                  // pick a free region index
+                stack_base,
+                ARM_MPU_RASR(
+                    1,                                         // XN = 1 (no execute)
+                    mpu_attr_os_data_priv_rw_unpriv_none_noexec(), // Priv RW, Unpriv NA, XN
+                    0,
+                    0,
+                    0,
+                    0,
+                    mpu_size_encoding(stack_size),
+                    1
+                ));
 
     // -------------------------------
     // Enable fault handlers

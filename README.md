@@ -1,154 +1,86 @@
-# **MicroRTOS**
+# MicroRTOS  
+A small, modular, preemptive real‑time operating system for STM32F4 microcontrollers.
 
-MicroRTOS is a small, modular real‑time operating system for writing simple embedded applications. It provides a clean C API for threads, IPC, timers, device I/O, memory allocation, and a prefix‑based virtual filesystem.
+MicroRTOS is a work‑in‑progress kernel designed for learning, experimentation, and embedded development.  
+It provides a clean API, a simple syscall layer, a lightweight VFS dispatch system, and a set of RTOS primitives such as threads, mutexes, queues, and timers.
 
-This project is still a work‑in‑progress, but the API surface is stable enough to build programs on top of it.
-
----
-
-## **🚀 Writing Programs for MicroRTOS**
-
-MicroRTOS exposes a simple set of C functions. All system calls are made through these APIs; the kernel handles the privileged transitions internally.
-
-Example:
-
-```c
-void TaskA(void *arg) {
-    int fd = FS_Open("/sd/data.txt", 0);
-    FS_Write(fd, "Hello", 5);
-    FS_Close(fd);
-
-    while (1) {
-        Thread_Sleep(1000);
-    }
-}
-```
-
-You write normal C code — MicroRTOS handles the rest.
+This project is not intended to be production‑ready, but it is functional and actively evolving.
 
 ---
 
-# **📘 MicroRTOS API Reference**
+## ✨ Features
 
-Below is the complete list of all public API functions, grouped by subsystem.
+### 🧵 **Preemptive Multithreading**
+- Priority‑based scheduler  
+- Manual stack‑frame construction for each thread  
+- Voluntary yielding (`Yield()`)  
+- Thread sleep with millisecond granularity though exact times are never gurranted (`Thread_Sleep()`)  
 
----
+### 🔒 **Synchronization Primitives**
+- Mutexes (`Mutex_Create`, `Mutex_Lock`, `Mutex_Unlock`)  
+- Blocking and non‑blocking message queues  
+  - `Queue_Send`, `Queue_Receive`  
+  - `Queue_TrySend`, `Queue_TryReceive`  
 
-# **🧵 Thread & Process API**
+### ⏱️ **Per‑Thread Software Timers**
+Each thread may create up to a small fixed number of timers:
+- `Timer_Create(ms)`  
+- `Timer_IsDone(id)`  
+- `Timer_Reset(id, ms)`  
+- `Timer_Cancel(id)`  
+- `Timer_Remaining(id)`  
 
-| Function | Parameters | Description |
-|---------|------------|-------------|
-| `Thread_Create` | `(ThreadEntry entry, void *arg, uint32_t stackSize)` | Create a new thread |
-| `Thread_Sleep` | `(uint32_t ms)` | Sleep for milliseconds |
-| `Thread_Yield` | `()` | Yield CPU voluntarily |
-| `Process_Add` | `(ProcessEntry entry, void *arg)` | Create a new process |
-| `Process_Exit` | `()` | Terminate current process |
-| `Process_Remove` | `(ProcessHandle p)` | Remove a process |
+Timers are polled by the owning thread and run independently in the background.
 
----
+### 🧩 **System Call Layer (SVC‑Based)**
+User threads run unprivileged and access kernel services through SVC calls.  
+This includes:
+- Memory allocation  
+- Queue operations  
+- Driver I/O  
+- Tick retrieval  
 
-# **🔒 Mutex API**
+### 💾 **Real‑Time TLSF Memory Allocator**
+`Malloc`, `Free`, `Calloc`, and `Realloc` are syscall wrappers around a TLSF allocator:
+- O(1) allocation and free  
+- Low fragmentation  
+- Suitable for real‑time systems  
 
-| Function | Parameters |
-|----------|------------|
-| `Mutex_Create` | `()` |
-| `Mutex_Lock` | `(Mutex m)` |
-| `Mutex_Unlock` | `(Mutex m)` |
-| `Mutex_Destroy` | `(Mutex m)` |
-| `Mutex_ReadFromThread` | `(ThreadHandle t)` |
+### 📁 **Minimal Virtual File System (VFS)**
+MicroRTOS includes a small prefix‑based VFS dispatch layer:
+- Drivers register via `VFS_RegisterDriver()`  
+- Paths are routed by prefix (e.g., `/sd/...`, `/flash/...`)  
+- Prefix is stripped before calling the driver  
+- Sparse FD mapping (`user_fd → driver_fd`)  
+- No caching, metadata, or POSIX semantics  
 
----
+Driver API includes:
+- `FS_Open`  
+- `FS_Close`  
+- `FS_Read`  
+- `FS_Write`  
+- `FS_List`  
 
-# **🔑 Semaphore API**
+### 🔌 **Hardware Abstraction Helpers**
+Convenience constructors for STM32 HAL peripherals:
+- `GPIO_NEW`  
+- `UART_NEW`  
+- `I2C_NEW`  
+- `SPI_NEW`  
 
-| Function | Parameters |
-|----------|------------|
-| `Semaphore_Get` | `()` |
-| `Semaphore_Wait` | `(Semaphore s)` |
-| `Semaphore_Signal` | `(Semaphore s)` |
+RTOS‑safe I/O wrappers using SVC:
+- `SPI_Transmit`, `SPI_Receive`, `SPI_TransmitReceive`  
+- `UART_Transmit`, `UART_Receive`  
+- GPIO read/write helpers  
 
----
-
-# **📬 Message Queue API**
-
-| Function | Parameters |
-|----------|------------|
-| `Queue_Create` | `(void *buffer, uint32_t size)` |
-| `Queue_Send` | `(Queue q, const void *msg)` |
-| `Queue_Receive` | `(Queue q, void *msg)` |
-| `Queue_TrySend` | `(Queue q, const void *msg)` |
-| `Queue_TryReceive` | `(Queue q, void *msg)` |
-
----
-
-# **⏱ Timer API**
-
-| Function | Parameters |
-|----------|------------|
-| `Timer_Create` | `(uint32_t ms)` |
-| `Timer_IsDone` | `(Timer t)` |
-| `Timer_Reset` | `(Timer t)` |
-| `Timer_Cancel` | `(Timer t)` |
-| `Timer_Remaining` | `(Timer t)` |
-| `Get_Tick` | `()` |
-
----
-
-# **🔌 Device I/O API**
-
-### **GPIO**
-| Function | Parameters |
-|----------|------------|
-| `GPIO_New` | `(int pin)` |
-| `GPIO_Write` | `(GPIO g, int value)` |
-| `GPIO_Read` | `(GPIO g)` |
-
-### **UART**
-| Function | Parameters |
-|----------|------------|
-| `UART_New` | `(uint32_t baud)` |
-| `UART_Transmit` | `(UART u, const void *data, uint32_t len)` |
-| `UART_Receive` | `(UART u, void *data, uint32_t len)` |
-
-### **I2C**
-| Function | Parameters |
-|----------|------------|
-| `I2C_New` | `()` |
-| `I2C_MasterTxRx` | `(I2C bus, uint8_t addr, const void *tx, uint32_t txLen, void *rx, uint32_t rxLen)` |
-
-### **SPI**
-| Function | Parameters |
-|----------|------------|
-| `SPI_New` | `()` |
-| `SPI_Transmit` | `(SPI s, const void *data, uint32_t len)` |
-| `SPI_Receive` | `(SPI s, void *data, uint32_t len)` |
-| `SPI_TransmitRecv` | `(SPI s, const void *tx, void *rx, uint32_t len)` |
+### ⏲️ **System Tick**
+- Millisecond tick  
+- `OS_GetTick()` syscall for unprivileged threads  
 
 ---
 
-# **📁 Filesystem API (VFS)**
+## 🚧 Current Status
 
-### **Driver Registration**
-| Function | Parameters |
-|----------|------------|
-| `VFS_RegisterDriver` | `(FileSystemDriver *driver)` |
-
-### **File Operations**
-| Function | Parameters |
-|----------|------------|
-| `FS_Open` | `(const char *path, int flags)` |
-| `FS_Close` | `(int fd)` |
-| `FS_Read` | `(int fd, void *buf, int size)` |
-| `FS_Write` | `(int fd, const void *buf, int size)` |
-| `FS_List` | `(const char *path, char *out, int maxLen)` |
-
----
-
-# **💾 Memory API**
-
-| Function | Parameters |
-|----------|------------|
-| `Malloc` | `(size_t size)` |
-| `Free` | `(void *ptr)` |
-| `Calloc` | `(size_t n, size_t size)` |
-| `Realloc` | `(void *ptr, size_t size)` |
+MicroRTOS is under active development.  
+It may contain bugs, incomplete features, or unstable behavior and may not compile.  
+The API is subject to change as the kernel evolves. but it is unlikey that old api functions are changed.
