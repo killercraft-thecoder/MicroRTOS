@@ -77,12 +77,12 @@ void thread_timer(void *) {
         if (Timer_IsDone(timerId)) {
             Timer_Reset(timerId,1000);
 
-            // Allocate something just to show kmalloc works
-            uint8_t *buf = (uint8_t *)kmalloc(32);
+            // Allocate something just to show Malloc works
+            uint8_t *buf = (uint8_t *)Malloc(32);
             if (buf) {
                 for (int i = 0; i < 32; i++)
                     buf[i] = lfsr;
-                kfree(buf);
+                Free(buf);
             }
 
             // If semaphore was signaled, exit

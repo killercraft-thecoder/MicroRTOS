@@ -447,6 +447,7 @@ API_FUNCTION(Create_Thread)
 void Create_Thread(thread_t *t, void (*entry)(void *), void *arg,
                    uint32_t *stack, size_t stackBytes, status_t priority, char *name[8]);
 
+API_FUNCTION(Yield)
 /**
  * @brief Voluntarily yield the CPU to another ready thread.
  *
@@ -900,11 +901,12 @@ bool Timer_Cancel(uint8_t timerId);
 uint32_t Timer_Remaining(uint8_t timerId);
 
 /**
- * @brief Allocates a block of memory from the kernel heap.
+ * @brief Allocate memory from the kernel's real‑time heap.
  *
- * This is a system call wrapper around the kernel's memory allocator.
- * Currently it forwards directly to libc malloc(), but the backend
- * can be replaced later without changing user code.
+ * This is a system call wrapper around the kernel's TLSF allocator.
+ * TLSF provides O(1) allocation and free, making it suitable for
+ * real‑time systems. User threads must use this API instead of
+ * calling malloc() directly.
  *
  * @param size Number of bytes to allocate.
  * @return Pointer to allocated memory, or NULL on failure.
@@ -912,20 +914,24 @@ uint32_t Timer_Remaining(uint8_t timerId);
 void *Malloc(size_t size);
 
 /**
- * @brief Frees a block of memory previously allocated with kmalloc/kcalloc/krealloc.
+ * @brief Free a block of memory previously allocated with Malloc/Calloc/Realloc.
  *
- * This is a system call wrapper around the kernel's memory free routine.
- * Currently it forwards directly to libc free().
+ * This is a system call wrapper around the kernel's TLSF allocator.
+ * TLSF provides O(1) free operations, making it suitable for real‑time use.
+ *
+ * User threads must use this API instead of calling free() directly.
  *
  * @param ptr Pointer to memory to free. NULL is ignored.
  */
 void Free(void *ptr);
 
 /**
- * @brief Allocates zero‑initialized memory from the kernel heap.
+ * @brief Allocate zero‑initialized memory from the kernel's real‑time heap.
  *
- * This is a system call wrapper around the kernel's calloc implementation.
- * Currently it forwards directly to libc calloc().
+ * This is a system call wrapper around the kernel's TLSF allocator.
+ * TLSF provides O(1) allocation and free, with low fragmentation.
+ *
+ * The returned memory is guaranteed to be zero‑filled.
  *
  * @param n Number of elements.
  * @param size Size of each element in bytes.
@@ -934,10 +940,12 @@ void Free(void *ptr);
 void *Calloc(size_t n, size_t size);
 
 /**
- * @brief Resizes a previously allocated memory block.
+ * @brief Resize a previously allocated memory block.
  *
- * This is a system call wrapper around the kernel's realloc implementation.
- * Currently it forwards directly to libc realloc().
+ * This is a system call wrapper around the kernel's TLSF allocator.
+ * TLSF supports O(1) reallocation in most cases, preserving real‑time behavior.
+ *
+ * If the block must be moved, the contents are copied to the new location.
  *
  * @param ptr Pointer to previously allocated memory (may be NULL).
  * @param newSize New size in bytes.
