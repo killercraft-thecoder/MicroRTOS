@@ -429,6 +429,7 @@ void Init_Scheduler(void);
  */
 void Start_Scheduler(void);
 
+API_FUNCTION(Create_Thread)
 /**
  * @brief Create and register a new thread with the scheduler.
  *
@@ -444,7 +445,7 @@ void Start_Scheduler(void);
  * @param priority    Thread priority (0 = lowest, higher = more urgent).
  */
 void Create_Thread(thread_t *t, void (*entry)(void *), void *arg,
-                   uint32_t *stack, size_t stackBytes, status_t priority, char *name[5]);
+                   uint32_t *stack, size_t stackBytes, status_t priority, char *name[8]);
 
 /**
  * @brief Voluntarily yield the CPU to another ready thread.
