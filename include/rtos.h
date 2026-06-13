@@ -3,5 +3,7 @@
 
 #include "thread.h"
 #include "process.h"
+#include "vfs.h"
+#include "libary.h"
 
 #endif
