@@ -346,13 +346,14 @@ void TLSF_Free(TlsfControl *ctl, void *ptr)
         return;
     }
 
+    /* Convert the user pointer to the internal block header first. */
+    TlsfBlockHeader *h = ptr_to_block(ptr);
+
     if (block_is_free(h))
     {
         debug_printf("[TLSF] ERROR: double free detected at %p\n", ptr);
         return;
     }
-
-    TlsfBlockHeader *h = ptr_to_block(ptr);
 
     size_t bsize = block_get_size(h);
     if (bsize < sizeof(TlsfFreeBlock) || (bsize & 0x3) != 0)

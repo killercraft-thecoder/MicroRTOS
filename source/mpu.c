@@ -3,7 +3,105 @@
 #include "process.h"
 #include "thread.h"
 #include "debug_printf.h"
+#include "vfs.h"
 #include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
+
+// -----------------------------------------------------------------------------
+// Fault trace buffer for post-mortem diagnostics
+// -----------------------------------------------------------------------------
+#define FAULT_TRACE_DEPTH 8
+
+typedef struct
+{
+    uint32_t timestamp; // reserved: system tick if available
+    uint32_t pc;
+    uint32_t regs[8]; // r0,r1,r2,r3,r12,lr,pc,xpsr
+    uint32_t cfsr;
+    uint32_t hfsr;
+    uint32_t bfar;
+    uint32_t mmfar;
+} FaultRecord;
+
+static FaultRecord g_fault_trace[FAULT_TRACE_DEPTH];
+static volatile uint32_t g_fault_trace_idx = 0;
+static volatile uint32_t g_fault_file_counter = 0;
+
+/* Forward declaration of dump helper (also exported in mpu.h) */
+int Kernel_Dump_FaultTrace(char *outBuffer, int maxLen);
+
+static void record_fault(uint32_t *stacked_regs, uint32_t cfsr, uint32_t hfsr)
+{
+    if (!stacked_regs)
+        return;
+
+    uint32_t idx;
+    __disable_irq();
+    idx = g_fault_trace_idx++ % FAULT_TRACE_DEPTH;
+    __enable_irq();
+
+    FaultRecord *r = &g_fault_trace[idx];
+    r->timestamp = g_kernel.systemTicks;
+    r->pc = stacked_regs[6];
+    r->regs[0] = stacked_regs[0];
+    r->regs[1] = stacked_regs[1];
+    r->regs[2] = stacked_regs[2];
+    r->regs[3] = stacked_regs[3];
+    r->regs[4] = stacked_regs[4];
+    r->regs[5] = stacked_regs[5];
+    r->regs[6] = stacked_regs[6];
+    r->regs[7] = stacked_regs[7];
+    r->cfsr = cfsr;
+    r->hfsr = hfsr;
+    r->bfar = SCB->BFAR;
+    r->mmfar = SCB->MMFAR;
+
+#ifdef AUTOSAVE_FAULTS
+    /* Attempt to autosave a textual dump of the fault via VFS. */
+    char tmp_buf[512];
+    int n = Kernel_Dump_FaultTrace(tmp_buf, sizeof(tmp_buf));
+    if (n > 0)
+    {
+        /* Build filename: <cause>_<N>_<owner> */
+        const char *cause = "Fault";
+        if ((r->cfsr & 0x000000FFU) != 0)
+            cause = "MemManage";
+        else if ((r->cfsr & 0x0000FF00U) != 0)
+            cause = "BusFault";
+        else if ((r->cfsr & 0xFFFF0000U) != 0)
+            cause = "UsageFault";
+        else if ((r->hfsr & (1u << 30)) != 0)
+            cause = "HardFault";
+
+        char owner[32] = "unknown";
+        if ((uint32_t)r->pc >= (uint32_t)&__kernel_text_start__ && (uint32_t)r->pc < (uint32_t)&__kernel_text_end__)
+        {
+            snprintf(owner, sizeof(owner), "kernel");
+        }
+        else if (g_kernel.currentThread)
+        {
+            /* Prefix thread name with capital 'T' */
+            char tn[16] = {0};
+            for (int i = 0; i < 8; i++)
+                tn[i] = (char)g_kernel.currentThread->name[i];
+            snprintf(owner, sizeof(owner), "T%.*s", 8, tn);
+        }
+
+        char fname[128];
+        uint32_t id = __atomic_fetch_add(&g_fault_file_counter, 1, __ATOMIC_RELAXED);
+        snprintf(fname, sizeof(fname), "/dbg/faultrecords/%s_%u_%s", cause, (unsigned)id, owner);
+
+        int fd = VFS_Open(fname, 1);
+        if (fd >= 0)
+        {
+            VFS_Write(fd, tmp_buf, n);
+            VFS_Close(fd);
+        }
+    }
+#endif
+}
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -267,30 +365,151 @@ void MPU_Init(void)
 KERNAL_FUNCTION
 void MemManage_Handler(void)
 {
+    /* Determine faulting PC from stacked frame to decide whether the fault
+       originated in kernel code/data or in the current user thread. */
+    uint32_t *stacked_ptr;
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq %0, msp\n"
+        "mrsne %0, psp\n"
+        : "=r"(stacked_ptr)
+        :
+        :);
+
+    uint32_t fault_pc = stacked_ptr[6];
+
+    bool in_kernel = false;
+    if ((uint32_t)&__kernel_text_start__ <= fault_pc && fault_pc < (uint32_t)&__kernel_text_end__)
+        in_kernel = true;
+    if ((uint32_t)&g_kernel <= fault_pc && fault_pc < ((uint32_t)&g_kernel + sizeof(g_kernel)))
+        in_kernel = true;
+    if ((uint32_t)&__stack_start__ <= fault_pc && fault_pc < (uint32_t)&__stack_end__)
+        in_kernel = true;
+
+    if (in_kernel)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("MemManage fault in kernel at PC=0x%08lX, CFSR=0x%08lX HFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr, (unsigned long)hfsr);
+        if (cfsr & (1u << 7))
+            debug_printf("  MMFAR=0x%08lX\n", (unsigned long)SCB->MMFAR);
+        NVIC_SystemReset();
+        return;
+    }
+
     Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    Kernal_Wipe_Thread(t);
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    if (t)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("MemManage in thread at PC=0x%08lX, CFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr);
+        if (cfsr & (1u << 7))
+            debug_printf("  MMFAR=0x%08lX\n", (unsigned long)SCB->MMFAR);
+        t->state = THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 }
 
 // Bus Fault
 KERNAL_FUNCTION
 void BusFault_Handler(void)
 {
+    uint32_t *stacked_ptr;
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq %0, msp\n"
+        "mrsne %0, psp\n"
+        : "=r"(stacked_ptr)
+        :
+        :);
+
+    uint32_t fault_pc = stacked_ptr[6];
+
+    bool in_kernel = false;
+    if ((uint32_t)&__kernel_text_start__ <= fault_pc && fault_pc < (uint32_t)&__kernel_text_end__)
+        in_kernel = true;
+    if ((uint32_t)&g_kernel <= fault_pc && fault_pc < ((uint32_t)&g_kernel + sizeof(g_kernel)))
+        in_kernel = true;
+    if ((uint32_t)&__stack_start__ <= fault_pc && fault_pc < (uint32_t)&__stack_end__)
+        in_kernel = true;
+
+    if (in_kernel)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("BusFault in kernel at PC=0x%08lX, CFSR=0x%08lX HFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr, (unsigned long)hfsr);
+        if (cfsr & (1u << 15))
+            debug_printf("  BFAR=0x%08lX\n", (unsigned long)SCB->BFAR);
+        NVIC_SystemReset();
+        return;
+    }
+
     Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    Kernal_Wipe_Thread(t);
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    if (t)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("BusFault in thread at PC=0x%08lX, CFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr);
+        if (cfsr & (1u << 15))
+            debug_printf("  BFAR=0x%08lX\n", (unsigned long)SCB->BFAR);
+        t->state = THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 }
 
 // Usage Fault
 KERNAL_FUNCTION
 void UsageFault_Handler(void)
 {
+    uint32_t *stacked_ptr;
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq %0, msp\n"
+        "mrsne %0, psp\n"
+        : "=r"(stacked_ptr)
+        :
+        :);
+
+    uint32_t fault_pc = stacked_ptr[6];
+
+    bool in_kernel = false;
+    if ((uint32_t)&__kernel_text_start__ <= fault_pc && fault_pc < (uint32_t)&__kernel_text_end__)
+        in_kernel = true;
+    if ((uint32_t)&g_kernel <= fault_pc && fault_pc < ((uint32_t)&g_kernel + sizeof(g_kernel)))
+        in_kernel = true;
+    if ((uint32_t)&__stack_start__ <= fault_pc && fault_pc < (uint32_t)&__stack_end__)
+        in_kernel = true;
+
+    if (in_kernel)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("UsageFault in kernel at PC=0x%08lX, CFSR=0x%08lX HFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr, (unsigned long)hfsr);
+        NVIC_SystemReset();
+        return;
+    }
+
     Thread *t = g_kernel.currentThread;
-    t->state = ThreadState::THREAD_HALTED;
-    Kernal_Wipe_Thread(t);
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    if (t)
+    {
+        uint32_t cfsr = SCB->CFSR;
+        uint32_t hfsr = SCB->HFSR;
+        record_fault(stacked_ptr, cfsr, hfsr);
+        debug_printf("UsageFault in thread at PC=0x%08lX, CFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr);
+        t->state = THREAD_HALTED;
+        Kernal_Wipe_Thread(t);
+        SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    }
 }
 
 // Hard Fault
@@ -315,30 +534,60 @@ void hardfault_c_handler(uint32_t * /*stacked_regs*/)
     bool is_memmanage_fault = (cfsr & 0x000000FF) != 0;
     bool is_forced_hardfault = (hfsr & (1 << 30)) != 0;
 
-    if (g_kernel->currentThread)
+    // stacked_regs passed in r0 by the assembly stub
+    uint32_t *stacked_regs = (uint32_t *)__get_PSP();
+    // Determine which stack was used for exception by testing LR in EXC_RETURN
+    uint32_t lr_val;
+    __asm volatile("mov %0, lr" : "=r"(lr_val));
+    if ((lr_val & 0x4) == 0)
     {
-        if (g_kernel->currentThread->psp == 0 || g_kernel->currentThread->entry == 0)
-        {
-            g_kernel->currentThread->state = THREAD_HALTED;
-            Kernal_Wipe_Thread(g_kernel->currentThread);
-            Kernal_Yield();
-            return;
-        }
+        // MSP used
+        stacked_regs = (uint32_t *)__get_MSP();
     }
 
-    // If it's a recoverable fault, isolate the thread
+    uint32_t fault_pc = 0;
+    if (stacked_regs)
+        fault_pc = stacked_regs[6];
+
+    bool in_kernel = false;
+    if ((uint32_t)&__kernel_text_start__ <= fault_pc && fault_pc < (uint32_t)&__kernel_text_end__)
+        in_kernel = true;
+    if ((uint32_t)&g_kernel <= fault_pc && fault_pc < ((uint32_t)&g_kernel + sizeof(g_kernel)))
+        in_kernel = true;
+    if ((uint32_t)&__stack_start__ <= fault_pc && fault_pc < (uint32_t)&__stack_end__)
+        in_kernel = true;
+
+    if (in_kernel)
+    {
+        record_fault(stacked_regs, cfsr, hfsr);
+        debug_printf("HardFault in kernel at PC=0x%08lX, CFSR=0x%08lX HFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr, (unsigned long)hfsr);
+        if (cfsr & (1u << 15))
+            debug_printf("  BFAR=0x%08lX\n", (unsigned long)SCB->BFAR);
+        if (cfsr & (1u << 7))
+            debug_printf("  MMFAR=0x%08lX\n", (unsigned long)SCB->MMFAR);
+        NVIC_SystemReset();
+        return;
+    }
+
+    // If it's a recoverable fault and we have a current thread, isolate it
     if (is_usage_fault || is_bus_fault || is_memmanage_fault || is_forced_hardfault)
     {
-        if (g_kernel && g_kernel->currentThread)
+        if (g_kernel.currentThread)
         {
-            g_kernel->currentThread->state = THREAD_HALTED;
-            Kernal_Wipe_Thread(g_kernel->currentThread);
+            record_fault(stacked_regs, cfsr, hfsr);
+            debug_printf("HardFault in thread at PC=0x%08lX, CFSR=0x%08lX HFSR=0x%08lX\n", (unsigned long)fault_pc, (unsigned long)cfsr, (unsigned long)hfsr);
+            if (cfsr & (1u << 15))
+                debug_printf("  BFAR=0x%08lX\n", (unsigned long)SCB->BFAR);
+            if (cfsr & (1u << 7))
+                debug_printf("  MMFAR=0x%08lX\n", (unsigned long)SCB->MMFAR);
+            g_kernel.currentThread->state = THREAD_HALTED;
+            Kernal_Wipe_Thread(g_kernel.currentThread);
             Kernal_Yield();
             return;
         }
     }
 
-    // If it's not recoverable or no thread context, reset
+    // Otherwise reset
     NVIC_SystemReset();
 }
 
@@ -455,4 +704,48 @@ inline void MPU_Disable(void)
     MPU->CTRL = 0U;
     __DSB();
     __ISB();
+}
+
+KERNAL_FUNCTION
+int Kernel_Dump_FaultTrace(char *outBuffer, int maxLen)
+{
+    if (!outBuffer || maxLen <= 0)
+        return -1;
+
+    int written = 0;
+    for (uint32_t i = 0; i < FAULT_TRACE_DEPTH; i++)
+    {
+        uint32_t idx = (g_fault_trace_idx + i) % FAULT_TRACE_DEPTH;
+        FaultRecord *r = &g_fault_trace[idx];
+        if (r->timestamp == 0 && r->pc == 0 && r->cfsr == 0 && r->hfsr == 0)
+            continue; // skip empty entries
+
+        int n = snprintf(outBuffer + written, (size_t)maxLen - (size_t)written,
+                         "#%u ts=%lu pc=0x%08lX cfsr=0x%08lX hfsr=0x%08lX bfar=0x%08lX mmfar=0x%08lX\n",
+                         (unsigned)i, (unsigned long)r->timestamp,
+                         (unsigned long)r->pc, (unsigned long)r->cfsr,
+                         (unsigned long)r->hfsr, (unsigned long)r->bfar,
+                         (unsigned long)r->mmfar);
+        if (n < 0)
+            break;
+        written += n;
+        if (written >= maxLen)
+            break;
+
+        /* Append register values in a compact line */
+        n = snprintf(outBuffer + written, (size_t)maxLen - (size_t)written,
+                     " regs=0x%08lX,0x%08lX,0x%08lX,0x%08lX,0x%08lX,0x%08lX,0x%08lX,0x%08lX\n",
+                     (unsigned long)r->regs[0], (unsigned long)r->regs[1], (unsigned long)r->regs[2], (unsigned long)r->regs[3], (unsigned long)r->regs[4], (unsigned long)r->regs[5], (unsigned long)r->regs[6], (unsigned long)r->regs[7]);
+        if (n < 0)
+            break;
+        written += n;
+        if (written >= maxLen)
+            break;
+    }
+
+    /* Ensure null termination if space remains */
+    if (written < maxLen)
+        outBuffer[written < 0 ? 0 : written] = '\0';
+
+    return written;
 }

@@ -260,6 +260,7 @@ enum : uint8_t
     SVC_FS_WRITE = 83,
     SVC_FS_LIST = 84,
     SVC_VFS_REGISTER_DRIVER = 85,
+    SVC_DUMP_FAULT_TRACE = 86, // Dump kernel fault trace into user buffer
 
 };
 
@@ -498,6 +499,7 @@ static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg);
 static inline void Save_Context(Thread *t);
 static inline void Restore_Context(Thread *t);
 
+API_FUNCTION(Thread_Sleep)
 /**
  * @brief Put the current thread to sleep for a given number of milliseconds.
  *
@@ -1004,9 +1006,18 @@ API_FUNCTION(FS_List)
  */
 int FS_List(const char *path, char *outBuffer, int maxLen);
 
-API_FUNCTION(VFS_RegisterDriver)
+API_FUNCTION(Dump_FaultTrace)
 /**
- * @brief Register a filesystem driver with the VFS.
+ * @brief Dump the kernel fault trace into a user-supplied buffer.
+ * @param outBuffer Destination buffer in user space.
+ * @param maxLen Maximum buffer length in bytes.
+ * @return Number of bytes written, or negative on error.
+ */
+int Dump_FaultTrace(char *outBuffer, int maxLen);
+
+API_FUNCTION(VFS_RegisterDriver)
+/*
+* @brief Register a filesystem driver with the VFS.
  * @param driver Pointer to a FileSystemDriver structure.
  * @return 0 on success, negative on error.
  */

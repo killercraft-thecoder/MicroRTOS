@@ -419,17 +419,19 @@ void Scheduler_Tick(void)
 KERNAL_FUNCTION
 void Kernal_Wipe_Thread(Thread *t)
 {
-    // Reset Super Imporant Registers
+    if (!t)
+        return;
+
+    // Reset important registers and bookkeeping
     t->psp = 0;
     t->stackBase = 0;
     t->stackSize = 0;
     t->priority = 0;
     t->entry = 0;
-    // clear imporant registers efficently
-    memset(&tcb->context, 0, sizeof(tcb->context));
 
-    // Clear Name
-    memset(p->name, 0, sizeof(p->name));
+    // Clear saved context and name safely
+    memset(&t->context, 0, sizeof(t->context));
+    memset(t->name, 0, sizeof(t->name));
     return;
 }
 
@@ -837,7 +839,11 @@ void *Kernal_Malloc(size_t size)
         return NULL;
     }
 
+    uint32_t prim = __get_PRIMASK();
+    __disable_irq();
     void *ptr = TLSF_Malloc(&g_kernel.tlsf, size);
+    __set_PRIMASK(prim);
+
     if (!ptr)
     {
         debug_printf("[KERNEL] Malloc failed: size=%u\n", (unsigned)size);
@@ -853,7 +859,10 @@ void Kernal_Free(void *ptr)
         return;
     }
 
+    uint32_t prim = __get_PRIMASK();
+    __disable_irq();
     TLSF_Free(&g_kernel.tlsf, ptr);
+    __set_PRIMASK(prim);
 }
 
 void *Kernal_Calloc(size_t n, size_t size)
@@ -865,7 +874,11 @@ void *Kernal_Calloc(size_t n, size_t size)
         return NULL;
     }
 
+    uint32_t prim = __get_PRIMASK();
+    __disable_irq();
     void *ptr = TLSF_Calloc(&g_kernel.tlsf, n, size);
+    __set_PRIMASK(prim);
+
     if (!ptr)
     {
         debug_printf("[KERNEL] Calloc failed: n=%u size=%u\n",
@@ -873,6 +886,7 @@ void *Kernal_Calloc(size_t n, size_t size)
     }
     return ptr;
 }
+
 
 void *Kernal_Realloc(void *ptr, size_t newSize)
 {
@@ -885,7 +899,11 @@ void *Kernal_Realloc(void *ptr, size_t newSize)
         return NULL;
     }
 
+    uint32_t prim = __get_PRIMASK();
+    __disable_irq();
     void *newPtr = TLSF_Realloc(&g_kernel.tlsf, ptr, newSize);
+    __set_PRIMASK(prim);
+
     if (!newPtr)
     {
         debug_printf("[KERNEL] Realloc failed: ptr=%p newSize=%u\n",
@@ -893,6 +911,8 @@ void *Kernal_Realloc(void *ptr, size_t newSize)
     }
     return newPtr;
 }
+
+
 
 static inline Thread *findThreadByName(const char *target)
 {
@@ -1311,19 +1331,33 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     case SVC_CREATE_THREAD:
     {
         _ThreadPartialArgs *extra = (_ThreadPartialArgs *)frame[3];
+        Thread *t = (Thread *)frame[0];
 
-        Kernal_Create_Thread((Thread *)frame[0],
+        if (!Kernal_IsValidRange(extra, sizeof(_ThreadPartialArgs)))
+            break;
+        if (!Kernal_IsValidPointer(t) || !Kernal_IsValidRange(t, sizeof(Thread)))
+            break;
+
+        /* Copy user-supplied partial args into a kernel-owned stack buffer
+           to avoid relying on a user stack-local pointer after return. */
+        _ThreadPartialArgs kextra;
+        memcpy(&kextra, extra, sizeof(kextra));
+
+        void *stack_ptr = kextra.stack;
+        if (stack_ptr && !Kernal_IsValidPointer(stack_ptr))
+            break;
+
+        Kernal_Create_Thread(t,
                              (void (*)(void *))frame[1],
                              (void *)frame[2],
-                             extra->stack,        // stack from partial args
+                             stack_ptr,           // stack from copied partial args
                              (uint32_t)frame[4],  // stackBytes
                              (status_t)frame[5]); // priority
 
-        // Copy the name into the Thread struct
-        Thread *t = (Thread *)frame[0];
+        /* Copy the name from the kernel-owned copy into the Thread struct */
         for (int i = 0; i < 8; i++)
         {
-            t->name[i] = extra->name[i];
+            t->name[i] = kextra.name[i];
         }
         break;
     }
@@ -1334,61 +1368,123 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         Kernal_Thread_Exit(frame[0]);
         break;
     case SVC_GPIO_WRITE:
+        if (!Kernal_IsValidPointer((const void *)frame[0]))
+            break;
         Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinStnate)frame[2]);
         break;
     case SVC_GPIO_READ:
+        if (!Kernal_IsValidPointer((const void *)frame[0]))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = Kernel_GPIO_Read((GPIO_TypeDef *)frame[0], (uint16_t)frame[1]);
         break;
 
     case SVC_UART_TRANSMIT:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(UART_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = (uint32_t)Kernel_UART_Transmit((UART_Args *)frame[0]);
         break;
     case SVC_UART_RECEIVE:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(UART_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = (uint32_t)Kernel_UART_Receive((UART_Args *)frame[0]);
         break;
 
     case SVC_I2C_MASTER_TXRX:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(I2C_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = (uint32_t)Kernel_I2C_Master_TransmitReceive((I2C_Args *)frame[0]);
         break;
     case SVC_GET_TICK:
         frame[0] = Kernel_GetTick();
         break;
     case SVC_SPI_TRANSMIT:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = (uint32_t)Kernel_SPI_Transmit((SPI_Args *)frame[0]);
         break;
     case SVC_SPI_RECEIVE:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = (uint32_t)Kernel_SPI_Receive((SPI_Args *)frame[0]);
         break;
     case SVC_SPI_TRANSMITRECV:
+        if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = Kernel_SPI_TransmitReceive((SPI_Args *)frame[0]);
         break;
     case SVC_GPIO_NEW:
     {
         const GPIO_NewArgs *a = (const GPIO_NewArgs *)frame[0];
+        if (!Kernal_IsValidRange(a, sizeof(GPIO_NewArgs)))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
         set_return_r0(frame, (uint32_t)Kernel_GPIO_New(a));
         break;
     }
     case SVC_UART_NEW:
     {
         const UART_NewArgs *a = (const UART_NewArgs *)frame[0];
+        if (!Kernal_IsValidRange(a, sizeof(UART_NewArgs)))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
         set_return_r0(frame, (uint32_t)Kernel_UART_New(a));
         break;
     }
     case SVC_I2C_NEW:
     {
         const I2C_NewArgs *a = (const I2C_NewArgs *)frame[0];
+        if (!Kernal_IsValidRange(a, sizeof(I2C_NewArgs)))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
         set_return_r0(frame, (uint32_t)Kernel_I2C_New(a));
         break;
     }
     case SVC_SPI_NEW:
     {
         const SPI_NewArgs *a = (const SPI_NewArgs *)frame[0];
+        if (!Kernal_IsValidRange(a, sizeof(SPI_NewArgs)))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
         set_return_r0(frame, (uint32_t)Kernel_SPI_New(a));
         break;
     }
     case SVC_MUTEX_CREATE:
     {
         Thread *maker = (Thread *)frame[0]; // r0 holds the thread pointer
+        if (maker && !Kernal_IsValidPointer(maker))
+        {
+            frame[0] = (uint32_t)0;
+            break;
+        }
         Mutex *m = Kernal_Create_Mutex(maker);
         frame[0] = (uint32_t)m; // return mutex pointer in r0
         break;
@@ -1396,17 +1492,27 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     case SVC_MUTEX_LOCK:
     {
         Mutex *m = (Mutex *)frame[0];
+        if (!Kernal_IsValidPointer(m))
+            break;
         Kernal_Lock_Mutex(m);
         break;
     }
     case SVC_MUTEX_UNLOCK:
     {
         Mutex *m = (Mutex *)frame[0];
+        if (!Kernal_IsValidPointer(m))
+            break;
         Kernal_Unlock_Mutex(m);
         break;
     }
     case SVC_MUTEX_READ_FROM_THREAD:
     {
+        const void *buf = (const void *)frame[0];
+        if (!Kernal_IsValidRange(buf, 5))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
         Get_Mutex_Result result = Kernal_Get_Mutex((char (*)[5])frame[0], frame[1]);
         set_return_r0(frame, result);
         break;
@@ -1419,11 +1525,15 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     }
     case SVC_SEMAPHORE_SIGNAL:
     {
+        if (!Kernal_IsValidPointer((const void *)frame[0]))
+            break;
         Semaphore_Signal((Semaphore_T *)frame[0]);
         break;
     }
     case SVC_SEMAPHORE_WAIT:
     {
+        if (!Kernal_IsValidPointer((const void *)frame[0]))
+            break;
         Semaphore_Wait((Semaphore_T *)frame[0]);
         break;
     }
@@ -1431,6 +1541,12 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     case SVC_QUEUE_CREATE:
     {
         const Queue_CreateArgs *a = (const Queue_CreateArgs *)frame[0]; // r0
+        if (!Kernal_IsValidRange(a, sizeof(Queue_CreateArgs)))
+            break;
+        if (!Kernal_IsValidPointer(a->q))
+            break;
+        if (a->buffer && !Kernal_IsValidPointer(a->buffer))
+            break;
         Kernel_Queue_Create(a->q, a->buffer, a->msgSize, a->capacity);
         break;
     }
@@ -1439,6 +1555,10 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
         MessageQueue *q = (MessageQueue *)frame[0]; // r0
         const void *msg = (const void *)frame[1];   // r1
+        if (!Kernal_IsValidPointer(q))
+            break;
+        if (msg && !Kernal_IsValidPointer(msg))
+            break;
         Kernel_Queue_Send(q, msg);
         break;
     }
@@ -1447,6 +1567,10 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
         MessageQueue *q = (MessageQueue *)frame[0]; // r0
         void *msgOut = (void *)frame[1];            // r1
+        if (!Kernal_IsValidPointer(q))
+            break;
+        if (msgOut && !Kernal_IsValidPointer(msgOut))
+            break;
         Kernel_Queue_Receive(q, msgOut);
         break;
     }
@@ -1455,6 +1579,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
         MessageQueue *q = (MessageQueue *)frame[0];
         const void *msg = (const void *)frame[1];
+        if (!Kernal_IsValidPointer(q) || (msg && !Kernal_IsValidPointer(msg)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = Kernel_Queue_TrySend(q, msg);
         break;
     }
@@ -1463,6 +1592,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
         MessageQueue *q = (MessageQueue *)frame[0];
         void *msgOut = (void *)frame[1];
+        if (!Kernal_IsValidPointer(q) || (msgOut && !Kernal_IsValidPointer(msgOut)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         frame[0] = Kernel_Queue_TryReceive(q, msgOut);
         break;
     }
@@ -1565,7 +1699,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         int fd = (int)frame[0];          // r0
         void *buffer = (void *)frame[1]; // r1
         int size = (int)frame[2];        // r2
-
+        if (size < 0 || (size > 0 && !Kernal_IsValidRange(buffer, (size_t)size)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         int bytes = Kernal_FS_Read(fd, buffer, size);
         frame[0] = (uint32_t)bytes; // return in r0
         break;
@@ -1576,7 +1714,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         int fd = (int)frame[0];                      // r0
         const void *buffer = (const void *)frame[1]; // r1
         int size = (int)frame[2];                    // r2
-
+        if (size < 0 || (size > 0 && !Kernal_IsValidRange(buffer, (size_t)size)))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         int bytes = Kernal_FS_Write(fd, buffer, size);
         frame[0] = (uint32_t)bytes; // return in r0
         break;
@@ -1587,6 +1729,16 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         const char *path = (const char *)frame[0]; // r0
         char *outBuffer = (char *)frame[1];        // r1
         int maxLen = (int)frame[2];                // r2
+        if (path && !Kernal_IsValidPointer(path))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
+        if (maxLen < 0 || (maxLen > 0 && (outBuffer == NULL || !Kernal_IsValidRange(outBuffer, (size_t)maxLen))))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
 
         int bytes = Kernal_FS_List(path, outBuffer, maxLen);
         frame[0] = (uint32_t)bytes; // return in r0
@@ -1598,6 +1750,20 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         FileSystemDriver *drv = (FileSystemDriver *)frame[0]; // r0
         int result = Kernal_VFS_RegisterDriver(drv);
         frame[0] = (uint32_t)result;
+        break;
+    }
+    case SVC_DUMP_FAULT_TRACE:
+    {
+        char *out = (char *)frame[0];
+        int maxLen = (int)frame[1];
+        if (!out || maxLen <= 0 || !Kernal_IsValidRange(out, (size_t)maxLen))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
+        extern int Kernel_Dump_FaultTrace(char *outBuffer, int maxLen);
+        int written = Kernel_Dump_FaultTrace(out, maxLen);
+        frame[0] = (uint32_t)written;
         break;
     }
 
@@ -1904,4 +2070,38 @@ int VFS_RegisterDriver(FileSystemDriver *driver)
     int result;
     __asm volatile("mov %0, r0" : "=r"(result));
     return result;
+}
+
+// Validate that a contiguous range [ptr, ptr+len) is within a valid region.
+static inline bool Kernal_IsValidRange(const void *ptr, size_t len)
+{
+    if (!ptr)
+        return false;
+    if (len == 0)
+        return true;
+
+    uintptr_t start = (uintptr_t)ptr;
+    uintptr_t end = start + (uintptr_t)len - 1U;
+
+    // Check both endpoints are valid pointers
+    if (!Kernal_IsValidPointer((const void *)start))
+        return false;
+    if (!Kernal_IsValidPointer((const void *)end))
+        return false;
+
+    // Simple sanity: ensure no wrap-around
+    if (end < start)
+        return false;
+
+    return true;
+}
+
+API_FUNCTION(Dump_FaultTrace)
+int Dump_FaultTrace(char *outBuffer, int maxLen)
+{
+    register char *r0 __asm__("r0") = outBuffer;
+    register int r1 __asm__("r1") = maxLen;
+    register int ret __asm__("r0");
+    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_DUMP_FAULT_TRACE), "r"(r0), "r"(r1) : "memory");
+    return ret;
 }

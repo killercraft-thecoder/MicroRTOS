@@ -1,7 +1,9 @@
 #include "vfs.h"
+#include "driver.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 // ---------------------------------------------------------
 // FD map (linked list, unlimited)
@@ -39,8 +41,42 @@ static int VFS_AddFd(FileSystemDriver *drv, int driverFd)
     VFS_FdMap *node = malloc(sizeof(VFS_FdMap));
     if (!node)
         return -1;
+    int assignedFd = -1;
 
-    node->userFd  = nextUserFd++;
+    /* Handle wrap/overflow of nextUserFd by searching for a free slot. */
+    if (nextUserFd == INT_MAX)
+    {
+        for (int cand = 3; cand < INT_MAX; cand++)
+        {
+            bool used = false;
+            VFS_FdMap *iter = fdMapHead;
+            while (iter)
+            {
+                if (iter->userFd == cand)
+                {
+                    used = true;
+                    break;
+                }
+                iter = iter->next;
+            }
+            if (!used)
+            {
+                assignedFd = cand;
+                break;
+            }
+        }
+        if (assignedFd == -1)
+        {
+            free(node);
+            return -1; // no available FD
+        }
+    }
+    else
+    {
+        assignedFd = nextUserFd++;
+    }
+
+    node->userFd = assignedFd;
     node->driver  = drv;
     node->driverFd = driverFd;
 
@@ -106,6 +142,10 @@ static FileSystemDriver *VFS_FindDriverForPath(const char *path)
     }
     prefix[idx] = '\0';
 
+    /* If prefix buffer filled but path still has non-slash chars, reject (too long). */
+    if (idx == (int)(sizeof(prefix) - 1) && *p && *p != '/')
+        return NULL;
+
     // If no prefix (path = "/foo"), fallback to first driver
     bool hasPrefix = (idx > 0);
 
@@ -151,6 +191,30 @@ int VFS_RegisterDriver(FileSystemDriver *driver)
         if (g_kernel.fsDrivers[i] == NULL)
         {
             g_kernel.fsDrivers[i] = driver;
+
+            /* Also register a lightweight entry with the generic driver registry
+               so drivers show up in the global registry and can be queried. */
+            if (driver->name)
+            {
+                /* Avoid duplicate registration in the driver registry */
+                Driver *existing = Driver_Find(driver->name);
+                if (!existing)
+                {
+                    Driver *wrap = malloc(sizeof(Driver));
+                    if (wrap)
+                    {
+                        memset(wrap, 0, sizeof(*wrap));
+                        wrap->name = driver->name;
+                        /* Filesystem drivers are character/block devices; choose a hint */
+                        wrap->type = (driver->list ? DRIVER_TYPE_BLOCK : DRIVER_TYPE_CHAR);
+                        wrap->context = (void *)driver; /* keep pointer to original FS driver */
+                        /* Do not populate generic op pointers; VFS will use the FileSystemDriver API */
+                        wrap->mpu_region_size = 0;
+                        Driver_Register(wrap);
+                    }
+                }
+            }
+
             return 0;
         }
     }
@@ -165,6 +229,9 @@ int VFS_Open(const char *path, int flags)
         return -1;
 
     const char *subpath = VFS_StripPrefix(path);
+
+    if (subpath == NULL)
+        return -1;
 
     int driverFd = drv->open(subpath, flags);
     if (driverFd < 0)
@@ -190,6 +257,11 @@ int VFS_Read(int userFd, void *buffer, int size)
     if (!entry || !entry->driver || !entry->driver->read)
         return -1;
 
+    if (size < 0)
+        return -1;
+    if (size > 0 && buffer == NULL)
+        return -1;
+
     return entry->driver->read(entry->driverFd, buffer, size);
 }
 
@@ -197,6 +269,11 @@ int VFS_Write(int userFd, const void *buffer, int size)
 {
     VFS_FdMap *entry = VFS_FindFd(userFd);
     if (!entry || !entry->driver || !entry->driver->write)
+        return -1;
+
+    if (size < 0)
+        return -1;
+    if (size > 0 && buffer == NULL)
         return -1;
 
     return entry->driver->write(entry->driverFd, buffer, size);
@@ -209,6 +286,11 @@ int VFS_List(const char *path, char *outBuffer, int maxLen)
         return -1;
 
     const char *subpath = VFS_StripPrefix(path);
+
+    if (maxLen < 0)
+        return -1;
+    if (maxLen > 0 && outBuffer == NULL)
+        return -1;
 
     return drv->list(subpath, outBuffer, maxLen);
 }

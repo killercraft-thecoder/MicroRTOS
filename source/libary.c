@@ -3,6 +3,24 @@
 #include "malloc.h"
 #include "thread.h"
 #include <string.h>
+#include <limits.h>
+
+// Small helper to advance the file by reading and discarding bytes.
+static int FS_Skip(int fd, size_t n)
+{
+    if (n == 0)
+        return 0;
+    char tmp[128];
+    while (n > 0)
+    {
+        size_t toread = n > sizeof(tmp) ? sizeof(tmp) : n;
+        int r = FS_Read(fd, tmp, (int)toread);
+        if (r <= 0)
+            return -1;
+        n -= (size_t)r;
+    }
+    return 0;
+}
 
 //
 // Internal helpers
@@ -23,8 +41,12 @@ static void *load_section(int fd, uint32_t offset, uint32_t size)
     void *mem = Malloc(size);
     if (!mem)
         return NULL;
-
-    FS_Read(fd, mem, size);
+    int rr = FS_Read(fd, mem, (int)size);
+    if (rr < (int)size)
+    {
+        Free(mem);
+        return NULL;
+    }
     return mem;
 }
 
@@ -70,17 +92,43 @@ Library *Library_Load(const char *path)
 
     // Load code
     // (assumes FS_Read advances; if you need seeking, add FS_Seek)
-    FS_Read(fd, NULL, codeOffset - sizeof(headerBuf));
+    if (codeOffset < sizeof(headerBuf)) {
+        FS_Close(fd);
+        Free(lib);
+        return NULL;
+    }
+    if (FS_Skip(fd, codeOffset - sizeof(headerBuf)) < 0) {
+        FS_Close(fd);
+        Free(lib);
+        return NULL;
+    }
+
     lib->code = Malloc(codeSize);
     if (!lib->code) {
         FS_Close(fd);
         Free(lib);
         return NULL;
     }
-    FS_Read(fd, lib->code, codeSize);
+    if (FS_Read(fd, lib->code, (int)codeSize) < (int)codeSize) {
+        FS_Close(fd);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
 
     // Load data
-    FS_Read(fd, NULL, dataOffset - (codeOffset + codeSize));
+    if (dataOffset < codeOffset + codeSize) {
+        FS_Close(fd);
+        if (lib->code) Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
+    if (FS_Skip(fd, dataOffset - (codeOffset + codeSize)) < 0) {
+        FS_Close(fd);
+        if (lib->code) Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
     lib->data = NULL;
     if (dataSize > 0) {
         lib->data = Malloc(dataSize);
@@ -90,7 +138,13 @@ Library *Library_Load(const char *path)
             Free(lib);
             return NULL;
         }
-        FS_Read(fd, lib->data, dataSize);
+        if (FS_Read(fd, lib->data, (int)dataSize) < (int)dataSize) {
+            FS_Close(fd);
+            Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
     }
 
     // Allocate BSS
@@ -108,9 +162,28 @@ Library *Library_Load(const char *path)
     }
 
     // Load metadata (name, version, exports)
-    FS_Read(fd, NULL, metaOffset - (dataOffset + dataSize));
+    if (metaOffset < dataOffset + dataSize) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
+    if (FS_Skip(fd, metaOffset - (dataOffset + dataSize)) < 0) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
     uint8_t metaBuf[32];
-    FS_Read(fd, metaBuf, sizeof(metaBuf));
+    if (FS_Read(fd, metaBuf, (int)sizeof(metaBuf)) < (int)sizeof(metaBuf)) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
 
     uint32_t exportCount       = read_u32(metaBuf, 0);
     uint32_t exportTableOffset = read_u32(metaBuf, 4);
@@ -119,13 +192,40 @@ Library *Library_Load(const char *path)
     lib->versionMinor          = read_u32(metaBuf, 16);
 
     // Load name
-    FS_Read(fd, NULL, nameOffset - (metaOffset + sizeof(metaBuf)));
-    FS_Read(fd, lib->name, sizeof(lib->name));
+    if (nameOffset < metaOffset + sizeof(metaBuf)) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
+    if (FS_Skip(fd, nameOffset - (metaOffset + sizeof(metaBuf))) < 0) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
+    if (FS_Read(fd, lib->name, (int)sizeof(lib->name)) < (int)sizeof(lib->name)) {
+        FS_Close(fd);
+        if (lib->data) Free(lib->data);
+        Free(lib->code);
+        Free(lib);
+        return NULL;
+    }
 
     // Load export table
     lib->exportCount = exportCount;
     lib->exports = NULL;
     if (exportCount > 0) {
+        if (exportCount > 1024) { // sane upper bound
+            FS_Close(fd);
+            if (lib->bss)  Free(lib->bss);
+            if (lib->data) Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
         lib->exports = Malloc(sizeof(LibraryExport) * exportCount);
         if (!lib->exports) {
             FS_Close(fd);
@@ -135,14 +235,48 @@ Library *Library_Load(const char *path)
             Free(lib);
             return NULL;
         }
-        FS_Read(fd, NULL, exportTableOffset - (nameOffset + 32));
-        FS_Read(fd, lib->exports, sizeof(LibraryExport) * exportCount);
+        if (exportTableOffset < nameOffset + 32) {
+            FS_Close(fd);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)  Free(lib->bss);
+            if (lib->data) Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
+        if (FS_Skip(fd, exportTableOffset - (nameOffset + 32)) < 0) {
+            FS_Close(fd);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)  Free(lib->bss);
+            if (lib->data) Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
+        if (FS_Read(fd, lib->exports, (int)(sizeof(LibraryExport) * exportCount)) < (int)(sizeof(LibraryExport) * exportCount)) {
+            FS_Close(fd);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)  Free(lib->bss);
+            if (lib->data) Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
     }
 
     // Load relocation table
     lib->relocCount = relocCount;
     lib->relocs = NULL;
     if (relocCount > 0) {
+        if (relocCount > 65536) {
+            FS_Close(fd);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)     Free(lib->bss);
+            if (lib->data)    Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
         lib->relocs = Malloc(sizeof(RelocEntry) * relocCount);
         if (!lib->relocs) {
             FS_Close(fd);
@@ -153,10 +287,38 @@ Library *Library_Load(const char *path)
             Free(lib);
             return NULL;
         }
-        FS_Read(fd, NULL, relocOffset - (exportTableOffset + sizeof(LibraryExport) * exportCount));
-        FS_Read(fd, lib->relocs, sizeof(RelocEntry) * relocCount);
+        if (relocOffset < exportTableOffset + sizeof(LibraryExport) * exportCount) {
+            FS_Close(fd);
+            if (lib->relocs) Free(lib->relocs);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)     Free(lib->bss);
+            if (lib->data)    Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
+        if (FS_Skip(fd, relocOffset - (exportTableOffset + sizeof(LibraryExport) * exportCount)) < 0) {
+            FS_Close(fd);
+            if (lib->relocs) Free(lib->relocs);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)     Free(lib->bss);
+            if (lib->data)    Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
+        if (FS_Read(fd, lib->relocs, (int)(sizeof(RelocEntry) * relocCount)) < (int)(sizeof(RelocEntry) * relocCount)) {
+            FS_Close(fd);
+            if (lib->relocs) Free(lib->relocs);
+            if (lib->exports) Free(lib->exports);
+            if (lib->bss)     Free(lib->bss);
+            if (lib->data)    Free(lib->data);
+            Free(lib->code);
+            Free(lib);
+            return NULL;
+        }
 
-        // Apply relocations
+        /* Apply relocations (ensure implementations validate entries) */
         apply_relocations(lib->code, lib->data, lib->relocs, lib->relocCount);
     }
 

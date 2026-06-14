@@ -44,4 +44,10 @@ void MPU_Disable(void);
  */
 uint32_t MPU_GetRegionCount(void);
 
+/**
+ * Dump the kernel fault trace into a user-supplied buffer (textual).
+ * Returns number of bytes written or negative on error.
+ */
+int Kernel_Dump_FaultTrace(char *outBuffer, int maxLen);
+
 #endif // MPU_H
