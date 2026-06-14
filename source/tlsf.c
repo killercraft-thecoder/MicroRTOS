@@ -1,7 +1,34 @@
 // tlsf.c - Minimal TLSF-style allocator for MicroRTOS
 
 #include "tlsf.h"
+#include "CMSIS/core_cm4.h"
+#include "process.h"
 #include <string.h>
+
+/*
+ * Lightweight allocator mutex: use the preallocated `g_kernel.tlsf_mutex`.
+ * We implement a simple spinlock using an atomic test-and-set on the
+ * `locked` flag. This avoids disabling interrupts globally and can be
+ * later integrated with a proper kernel mutex that blocks and yields.
+ */
+static inline uint32_t tlsf_enter_critical(void)
+{
+    Mutex *m = &g_kernel.tlsf_mutex;
+    while (__atomic_test_and_set(&m->locked, __ATOMIC_ACQUIRE))
+    {
+        __asm volatile("nop");
+    }
+    m->owner = g_kernel.currentThread;
+    return 0;
+}
+
+static inline void tlsf_exit_critical(uint32_t prim)
+{
+    (void)prim;
+    Mutex *m = &g_kernel.tlsf_mutex;
+    m->owner = NULL;
+    __atomic_clear(&m->locked, __ATOMIC_RELEASE);
+}
 
 // -----------------------------------------------------------------------------
 // Internal helpers and macros
@@ -289,6 +316,7 @@ static TlsfBlockHeader *coalesce_block(TlsfControl *ctl, TlsfBlockHeader *block)
 
 void TLSF_Init(TlsfControl *ctl)
 {
+    uint32_t prim = tlsf_enter_critical();
     memset(ctl, 0, sizeof(*ctl));
 
     ctl->heap_start = &__heap_start__;
@@ -303,21 +331,32 @@ void TLSF_Init(TlsfControl *ctl)
     initial->prev_free = initial->next_free = NULL;
 
     insert_free_block(ctl, initial);
+    tlsf_exit_critical(prim);
 }
 
 void *TLSF_Malloc(TlsfControl *ctl, size_t size)
 {
+    uint32_t prim = tlsf_enter_critical();
     size_t req = adjust_request_size(size);
     if (req == 0)
+    {
+        tlsf_exit_critical(prim);
         return NULL;
+    }
 
     int fl = 0, sl = 0;
     if (!mapping_search(ctl, req, &fl, &sl))
+    {
+        tlsf_exit_critical(prim);
         return NULL;
+    }
 
     TlsfFreeBlock *block = ctl->free_lists[fl][sl];
     if (!block)
+    {
+        tlsf_exit_critical(prim);
         return NULL;
+    }
 
     remove_free_block(ctl, block);
 
@@ -325,7 +364,9 @@ void *TLSF_Malloc(TlsfControl *ctl, size_t size)
     h = split_block(ctl, h, req);
     block_set_used(h);
 
-    return block_to_ptr(h);
+    void *ret = block_to_ptr(h);
+    tlsf_exit_critical(prim);
+    return ret;
 }
 
 void TLSF_Free(TlsfControl *ctl, void *ptr)
@@ -333,16 +374,24 @@ void TLSF_Free(TlsfControl *ctl, void *ptr)
     if (!ptr)
         return;
 
+    uint32_t prim = tlsf_enter_critical();
+
     if ((uint8_t *)ptr < (uint8_t *)ctl->heap_start ||
         (uint8_t *)ptr >= (uint8_t *)ctl->heap_start + ctl->heap_size)
     {
+#ifdef TLSF_DEBUG
         debug_printf("[TLSF] ERROR: free(%p) outside heap range!\n", ptr);
+#endif
+        tlsf_exit_critical(prim);
         return;
     }
 
     if (((uintptr_t)ptr & (TLSF_ALIGN - 1)) != 0)
     {
+#ifdef TLSF_DEBUG
         debug_printf("[TLSF] ERROR: free(%p) not aligned!\n", ptr);
+#endif
+        tlsf_exit_critical(prim);
         return;
     }
 
@@ -351,15 +400,21 @@ void TLSF_Free(TlsfControl *ctl, void *ptr)
 
     if (block_is_free(h))
     {
+#ifdef TLSF_DEBUG
         debug_printf("[TLSF] ERROR: double free detected at %p\n", ptr);
+#endif
+        tlsf_exit_critical(prim);
         return;
     }
 
     size_t bsize = block_get_size(h);
     if (bsize < sizeof(TlsfFreeBlock) || (bsize & 0x3) != 0)
     {
+#ifdef TLSF_DEBUG
         debug_printf("[TLSF] ERROR: corrupted block header at %p (size=%u)\n",
                      h, (unsigned)bsize);
+#endif
+        tlsf_exit_critical(prim);
         return;
     }
 
@@ -368,22 +423,30 @@ void TLSF_Free(TlsfControl *ctl, void *ptr)
     h = coalesce_block(ctl, h);
     TlsfFreeBlock *fb = as_free_block(h);
 
+#ifdef TLSF_DEBUG
     if (fb->prev_free || fb->next_free)
     {
         debug_printf("[TLSF] ERROR: free block %p has non-null links before insertion\n", fb);
     }
+#endif
     insert_free_block(ctl, fb);
+    tlsf_exit_critical(prim);
 }
 
 void *TLSF_Calloc(TlsfControl *ctl, size_t n, size_t size)
 {
+    uint32_t prim = tlsf_enter_critical();
     size_t total;
     if (__builtin_mul_overflow(n, size, &total))
+    {
+        tlsf_exit_critical(prim);
         return NULL;
+    }
 
     void *ptr = TLSF_Malloc(ctl, total);
     if (ptr)
         memset(ptr, 0, total);
+    tlsf_exit_critical(prim);
     return ptr;
 }
 
@@ -397,6 +460,7 @@ void *TLSF_Realloc(TlsfControl *ctl, void *ptr, size_t newSize)
         return NULL;
     }
 
+    uint32_t prim = tlsf_enter_critical();
     TlsfBlockHeader *h = ptr_to_block(ptr);
     size_t old_size = block_get_size(h) - sizeof(TlsfBlockHeader);
     size_t req = adjust_request_size(newSize);
@@ -404,11 +468,13 @@ void *TLSF_Realloc(TlsfControl *ctl, void *ptr, size_t newSize)
     // If the current block is already big enough, optionally shrink/split.
     if (block_get_size(h) >= req)
     {
+        tlsf_exit_critical(prim);
         // TODO: optionally split the block if there's enough excess space.
         return ptr;
     }
 
     // Otherwise, allocate a new block and copy.
+    tlsf_exit_critical(prim);
     void *new_ptr = TLSF_Malloc(ctl, newSize);
     if (!new_ptr)
         return NULL;

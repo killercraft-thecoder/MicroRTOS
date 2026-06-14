@@ -37,6 +37,11 @@ typedef struct
  */
 #define MAX_THREADS 8
 
+/**
+ * @brief Maximum number of kernel mutexes available.
+ */
+#define MAX_MUTEXES 16
+
 /** 
  * @brief Maximum number of semaphores the kernal can track at once
  * @note semaphores are shared globally
@@ -89,6 +94,14 @@ typedef struct
     // TLSF Allocator
     // -------------------
     TlsfControl tlsf;
+    /* Mutexes managed by the kernel. Some subsystems (TLSF allocator)
+     * use a dedicated mutex here to protect shared state. */
+    Mutex mutexes[MAX_MUTEXES];
+    uint8_t mutexCount;
+
+    /* Dedicated mutex for the TLSF allocator (preallocated in KernelData)
+     * so the allocator can avoid disabling interrupts. */
+    Mutex tlsf_mutex;
 
 
     // ---------------

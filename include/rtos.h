@@ -5,5 +5,7 @@
 #include "process.h"
 #include "vfs.h"
 #include "libary.h"
+#include "tlsf.h"
+#include "driver.h"
 
 #endif

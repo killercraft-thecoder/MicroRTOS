@@ -839,10 +839,7 @@ void *Kernal_Malloc(size_t size)
         return NULL;
     }
 
-    uint32_t prim = __get_PRIMASK();
-    __disable_irq();
     void *ptr = TLSF_Malloc(&g_kernel.tlsf, size);
-    __set_PRIMASK(prim);
 
     if (!ptr)
     {
@@ -859,10 +856,7 @@ void Kernal_Free(void *ptr)
         return;
     }
 
-    uint32_t prim = __get_PRIMASK();
-    __disable_irq();
     TLSF_Free(&g_kernel.tlsf, ptr);
-    __set_PRIMASK(prim);
 }
 
 void *Kernal_Calloc(size_t n, size_t size)
@@ -874,10 +868,8 @@ void *Kernal_Calloc(size_t n, size_t size)
         return NULL;
     }
 
-    uint32_t prim = __get_PRIMASK();
-    __disable_irq();
+
     void *ptr = TLSF_Calloc(&g_kernel.tlsf, n, size);
-    __set_PRIMASK(prim);
 
     if (!ptr)
     {
@@ -899,10 +891,8 @@ void *Kernal_Realloc(void *ptr, size_t newSize)
         return NULL;
     }
 
-    uint32_t prim = __get_PRIMASK();
-    __disable_irq();
+
     void *newPtr = TLSF_Realloc(&g_kernel.tlsf, ptr, newSize);
-    __set_PRIMASK(prim);
 
     if (!newPtr)
     {
