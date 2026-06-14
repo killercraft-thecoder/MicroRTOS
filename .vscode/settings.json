@@ -9,5 +9,9 @@
         "stm32f4xx_hal_def.h": "c",
         "stm32f4xx_hal_conf.h": "c"
     },
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "chat.tools.edits.autoApprove": {
+        "**/include/CMSIS/**": false,
+        "/build/**": false
+    }
 }

@@ -520,7 +520,7 @@ typedef struct
     uint32_t timeout;
 } SPI_Args;
 
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_Args *args)
+HAL_StatusTypeDef SPI_Transmit(SPI_Args *args)
 {
     HAL_StatusTypeDef result;
     __asm volatile(
@@ -540,7 +540,7 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Transmit(SPI_
  * @param Timeout Timeout duration in milliseconds.
  * @return HAL status.
  */
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_Args *args)
+HAL_StatusTypeDef SPI_Receive(SPI_Args *args)
 {
     HAL_StatusTypeDef result;
     __asm volatile(
@@ -561,7 +561,7 @@ __attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_Receive(SPI_A
  * @param Timeout Timeout duration in milliseconds.
  * @return HAL status.
  */
-__attribute__((always_inline)) static inline HAL_StatusTypeDef SPI_TransmitReceive(SPI_Args *args)
+HAL_StatusTypeDef SPI_TransmitReceive(SPI_Args *args)
 {
     HAL_StatusTypeDef result;
     __asm volatile(
