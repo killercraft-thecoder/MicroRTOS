@@ -3,6 +3,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <mpu.h>
+#include "mutex.h"
+#include "semaphore.h"
+#include "gpio.h"
+#include "uart.h"
+#include "queue.h"
+#include "timer.h"
+#include "fs.h"
 
 #define MAX_THREADS 8
 #define TICK_HZ 1000U // 1 ms tick
@@ -167,14 +174,6 @@ void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
         : "memory");
 }
 
-API_FUNCTION(Mutex_Create)
-Mutex *Mutex_Create(Thread *maker)
-{
-    register Thread *r0 __asm__("r0") = maker;
-    register Mutex *ret __asm__("r0");
-    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_CREATE) : "memory");
-    return ret;
-}
 API_FUNCTION(Mutex_Lock)
 void Mutex_Lock(Mutex *m)
 {
@@ -184,23 +183,11 @@ void Mutex_Lock(Mutex *m)
 API_FUNCTION(Mutex_Unlock)
 void Mutex_Unlock(Mutex *m)
 {
-    register mutex *r0 __asm__("r0") = m;
-    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_UNLOCK) : "memory");
-}
-API_FUNCTION(Get_Mutex)
-Get_Mutex_Result Get_Mutex(char name[5], int id)
-{
     register char(*r0) __asm__("r0") = &name;
     register int __asm__("r1") = id;
     __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_READ_FROM_THREAD) : "memory");
 }
 API_FUNCTION(Get_Semaphore)
-Semaphore_T Get_Semaphore(void)
-{
-    register int ret __asm__("r0");
-    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_SEMAPHORE_GET) : "memory");
-    return (Semaphore_T){.id = ret};
-}
 API_FUNCTION(Semaphore_Signal)
 void Semaphore_Signal(Semaphore_T *s)
 {
@@ -220,24 +207,12 @@ static void Init_SysTick(void)
     SystemCoreClockUpdate();
 
     // Configure SysTick to interrupt at TICK_HZ
-    if (SysTick_Config(SystemCoreClock / TICK_HZ))
-    {
-        // Reload value too large for SysTick
-        while (1)
-        {              /* error */
-            __BKPT(10) // Error Code 10 (Unable to boot.)
         }
     }
 
     uint32_t lowest = (1UL << __NVIC_PRIO_BITS) - 1UL;
     NVIC_SetPriority(PendSV_IRQn, lowest);
     NVIC_SetPriority(SysTick_IRQn, lowest - 1U);
-    NVIC_SetPriority(SVCall_IRQn, lowest - 2U);
-}
-
-void SysTick_Handler(void)
-{
-    Scheduler_Tick(); // 1ms tick
 }
 
 // Start the scheduler: set current thread and pend PendSV to start via handler
@@ -1805,15 +1780,6 @@ HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint1
 API_FUNCTION(UART_Receive)
 HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
-    UART_Args args = {huart, pData, Size, Timeout};
-    register UART_Args *r0 __asm__("r0") = &args;
-    register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_RECEIVE), "r"(r0) : "memory");
-    return ret;
-}
-API_FUNCTION(I2C_Master_TransmitReceive)
-HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
-                                             uint16_t DevAddress,
                                              uint8_t *pTxData, uint16_t TxSize,
                                              uint8_t *pRxData, uint16_t RxSize,
                                              uint32_t Timeout)
@@ -1823,15 +1789,6 @@ HAL_StatusTypeDef I2C_Master_TransmitReceive(I2C_HandleTypeDef *hi2c,
     register HAL_StatusTypeDef ret __asm__("r0");
     __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
     return ret;
-}
-API_FUNCTION(Queue_Create)
-void Queue_Create(MessageQueue *q, void *buffer,
-                  uint16_t msgSize, uint16_t capacity)
-{
-    Queue_CreateArgs args = {
-        .q = q,
-        .buffer = buffer,
-        .msgSize = msgSize,
         .capacity = capacity};
 
     register Queue_CreateArgs *r0 __asm__("r0") = &args;
@@ -1840,15 +1797,6 @@ void Queue_Create(MessageQueue *q, void *buffer,
 API_FUNCTION(Queue_Send)
 void Queue_Send(MessageQueue *q, const void *msg)
 {
-    register MessageQueue *r0 __asm__("r0") = q;
-    register const void *r1 __asm__("r1") = msg;
-
-    __asm volatile("svc %0" ::"i"(SVC_QUEUE_SEND), "r"(r0), "r"(r1) : "memory");
-}
-API_FUNCTION(Queue_Receive)
-void Queue_Receive(MessageQueue *q, void *msgOut)
-{
-    register MessageQueue *r0 __asm__("r0") = q;
     register void *r1 __asm__("r1") = msgOut;
 
     __asm volatile("svc %0" ::"i"(SVC_QUEUE_RECEIVE), "r"(r0), "r"(r1) : "memory");
@@ -1858,15 +1806,6 @@ QueueStatus Queue_TrySend(MessageQueue *q, const void *msg)
 {
     register MessageQueue *r0 __asm__("r0") = q;
     register const void *r1 __asm__("r1") = msg;
-
-    __asm volatile("svc %0" ::"i"(SVC_QUEUE_TRY_SEND), "r"(r0), "r"(r1) : "memory");
-
-    QueueStatus result;
-    __asm volatile("mov %0, r0" : "=r"(result));
-    return result;
-}
-API_FUNCTION(Queue_TryReceive)
-QueueStatus Queue_TryReceive(MessageQueue *q, void *msgOut)
 {
     register MessageQueue *r0 __asm__("r0") = q;
     register void *r1 __asm__("r1") = msgOut;
@@ -1888,19 +1827,6 @@ uint8_t Timer_Create(uint32_t ms)
     __asm volatile("mov %0, r0" : "=r"(id));
     return id;
 }
-API_FUNCTION(Timer_IsDone)
-bool Timer_IsDone(uint8_t timerId)
-{
-    register uint32_t r0 __asm__("r0") = timerId;
-
-    __asm volatile("svc %0" ::"i"(SVC_TIMER_IS_DONE), "r"(r0) : "memory");
-
-    bool done;
-    __asm volatile("mov %0, r0" : "=r"(done));
-    return done;
-}
-
-API_FUNCTION(Timer_Reset)
 bool Timer_Reset(uint8_t timerId, uint32_t ms)
 {
     register uint32_t r0 __asm__("r0") = timerId;
@@ -1914,14 +1840,6 @@ bool Timer_Reset(uint8_t timerId, uint32_t ms)
 }
 
 API_FUNCTION(Timer_Cancel)
-bool Timer_Cancel(uint8_t timerId)
-{
-    register uint32_t r0 __asm__("r0") = timerId;
-
-    __asm volatile("svc %0" ::"i"(SVC_TIMER_CANCEL), "r"(r0) : "memory");
-
-    bool result;
-    __asm volatile("mov %0, r0" : "=r"(result));
     return result;
 }
 
@@ -1930,14 +1848,6 @@ uint32_t Timer_Remaining(uint8_t timerId)
 {
     register uint32_t r0 __asm__("r0") = timerId;
 
-    __asm volatile("svc %0" ::"i"(SVC_TIMER_REMAINING), "r"(r0) : "memory");
-
-    uint32_t remaining;
-    __asm volatile("mov %0, r0" : "=r"(remaining));
-    return remaining;
-}
-
-API_FUNCTION(Malloc)
 void *Malloc(size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)size;
@@ -1946,18 +1856,6 @@ void *Malloc(size_t size)
 
     void *ptr;
     __asm volatile("mov %0, r0" : "=r"(ptr));
-    return ptr;
-}
-
-API_FUNCTION(Free)
-void Free(void *ptr)
-{
-    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
-
-    __asm volatile("svc %0" ::"i"(SVC_FREE), "r"(r0) : "memory");
-}
-
-API_FUNCTION(Calloc)
 void *Calloc(size_t n, size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)n;
@@ -1970,18 +1868,6 @@ void *Calloc(size_t n, size_t size)
     return ptr;
 }
 
-API_FUNCTION(Realloc)
-void *Realloc(void *ptr, size_t newSize)
-{
-    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
-    register uint32_t r1 __asm__("r1") = (uint32_t)newSize;
-
-    __asm volatile("svc %0" ::"i"(SVC_REALLOC), "r"(r0), "r"(r1) : "memory");
-
-    void *newPtr;
-    __asm volatile("mov %0, r0" : "=r"(newPtr));
-    return newPtr;
-}
 
 API_FUNCTION(FS_Open)
 int FS_Open(const char *path, int flags)
@@ -1993,17 +1879,6 @@ int FS_Open(const char *path, int flags)
 
     int fd;
     __asm volatile("mov %0, r0" : "=r"(fd));
-    return fd;
-}
-
-API_FUNCTION(FS_Close)
-int FS_Close(int fd)
-{
-    register uint32_t r0 __asm__("r0") = (uint32_t)fd;
-
-    __asm volatile("svc %0" ::"i"(SVC_FS_CLOSE), "r"(r0) : "memory");
-
-    int result;
     __asm volatile("mov %0, r0" : "=r"(result));
     return result;
 }
@@ -2015,17 +1890,6 @@ int FS_Read(int fd, void *buffer, int size)
     register uint32_t r1 __asm__("r1") = (uint32_t)buffer;
     register uint32_t r2 __asm__("r2") = (uint32_t)size;
 
-    __asm volatile("svc %0" ::"i"(SVC_FS_READ), "r"(r0), "r"(r1), "r"(r2) : "memory");
-
-    int bytes;
-    __asm volatile("mov %0, r0" : "=r"(bytes));
-    return bytes;
-}
-
-API_FUNCTION(FS_Write)
-int FS_Write(int fd, const void *buffer, int size)
-{
-    register uint32_t r0 __asm__("r0") = (uint32_t)fd;
     register uint32_t r1 __asm__("r1") = (uint32_t)buffer;
     register uint32_t r2 __asm__("r2") = (uint32_t)size;
 
@@ -2038,18 +1902,6 @@ int FS_Write(int fd, const void *buffer, int size)
 
 API_FUNCTION(FS_List)
 int FS_List(const char *path, char *outBuffer, int maxLen)
-{
-    register uint32_t r0 __asm__("r0") = (uint32_t)path;
-    register uint32_t r1 __asm__("r1") = (uint32_t)outBuffer;
-    register uint32_t r2 __asm__("r2") = (uint32_t)maxLen;
-
-    __asm volatile("svc %0" ::"i"(SVC_FS_LIST), "r"(r0), "r"(r1), "r"(r2) : "memory");
-
-    int bytes;
-    __asm volatile("mov %0, r0" : "=r"(bytes));
-    return bytes;
-}
-
 API_FUNCTION(VFS_RegisterDriver)
 int VFS_RegisterDriver(FileSystemDriver *driver)
 {
@@ -2063,17 +1915,6 @@ int VFS_RegisterDriver(FileSystemDriver *driver)
 }
 
 // Validate that a contiguous range [ptr, ptr+len) is within a valid region.
-static inline bool Kernal_IsValidRange(const void *ptr, size_t len)
-{
-    if (!ptr)
-        return false;
-    if (len == 0)
-        return true;
-
-    uintptr_t start = (uintptr_t)ptr;
-    uintptr_t end = start + (uintptr_t)len - 1U;
-
-    // Check both endpoints are valid pointers
     if (!Kernal_IsValidPointer((const void *)start))
         return false;
     if (!Kernal_IsValidPointer((const void *)end))
@@ -2086,12 +1927,3 @@ static inline bool Kernal_IsValidRange(const void *ptr, size_t len)
     return true;
 }
 
-API_FUNCTION(Dump_FaultTrace)
-int Dump_FaultTrace(char *outBuffer, int maxLen)
-{
-    register char *r0 __asm__("r0") = outBuffer;
-    register int r1 __asm__("r1") = maxLen;
-    register int ret __asm__("r0");
-    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_DUMP_FAULT_TRACE), "r"(r0), "r"(r1) : "memory");
-    return ret;
-}
