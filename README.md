@@ -1,86 +1,31 @@
-# MicroRTOS  
-A small, modular, preemptive real‑time operating system for STM32F4 microcontrollers.
+# MicroRTOS
 
-MicroRTOS is a work‑in‑progress kernel designed for learning, experimentation, and embedded development.  
-It provides a clean API, a simple syscall layer, a lightweight VFS dispatch system, and a set of RTOS primitives such as threads, mutexes, queues, and timers.
+A compact, modular, preemptive real‑time operating system targeted at STM32F4-class microcontrollers.
 
-This project is not intended to be production‑ready, but it is functional and actively evolving.
+MicroRTOS is designed for learning, experimentation, and fast iteration. It provides a small, auditable kernel with a clear syscall boundary, a lightweight virtual file system, and a set of core RTOS primitives useful for embedded projects and teaching.
 
----
+Key design goals
+- Minimalism: small trusted computing base and straightforward APIs.
+- Observability: lightweight tracing and fault diagnostic helpers.
+- Extensibility: driver registration via a prefix‑based VFS.
 
-## ✨ Features
+Core features
+- Preemptive, priority‑based scheduler with PSP stack frames for unprivileged threads.
+- Mutexes, semaphores, and blocking/non‑blocking message queues.
+- Per‑thread soft timers and millisecond system tick.
+- TLSF allocator exposed via SVC wrappers: `Malloc`, `Free`, `Calloc`, `Realloc`.
+- Small prefix‑based VFS: drivers implement `FS_Open`, `FS_Close`, `FS_Read`, `FS_Write`, `FS_List` and register with `VFS_RegisterDriver()`.
+- RTOS‑safe hardware helpers and SVC‑mediated I/O wrappers for common STM32 HAL peripherals.
 
-### 🧵 **Preemptive Multithreading**
-- Priority‑based scheduler  
-- Manual stack‑frame construction for each thread  
-- Voluntary yielding (`Yield()`)  
-- Thread sleep with millisecond granularity though exact times are never gurranted (`Thread_Sleep()`)  
+Notes
+- This project is experimental and evolving; it is not intended as a production‑grade RTOS.
+- The `include/CMSIS/` directory contains generic CMSIS headers and a subset of the STM32F4 HAL used for builds and examples. See [include/CMSIS/](include/CMSIS/) for details.
+- This repository was "vibe coded" — developed with human direction and assisted by AI tools to speed iteration and prototyping.
 
-### 🔒 **Synchronization Primitives**
-- Mutexes (`Mutex_Create`, `Mutex_Lock`, `Mutex_Unlock`)  
-- Blocking and non‑blocking message queues  
-  - `Queue_Send`, `Queue_Receive`  
-  - `Queue_TrySend`, `Queue_TryReceive`  
+Contributing
+- Issues, PRs, and small reproducible patches are welcome. For larger design changes (scheduler, allocator, MPU model) please open an issue first to discuss the approach. (please dont make a billon though.)
 
-### ⏱️ **Per‑Thread Software Timers**
-Each thread may create up to a small fixed number of timers:
-- `Timer_Create(ms)`  
-- `Timer_IsDone(id)`  
-- `Timer_Reset(id, ms)`  
-- `Timer_Cancel(id)`  
-- `Timer_Remaining(id)`  
-
-Timers are polled by the owning thread and run independently in the background.
-
-### 🧩 **System Call Layer (SVC‑Based)**
-User threads run unprivileged and access kernel services through SVC calls.  
-This includes:
-- Memory allocation  
-- Queue operations  
-- Driver I/O  
-- Tick retrieval  
-
-### 💾 **Real‑Time TLSF Memory Allocator**
-`Malloc`, `Free`, `Calloc`, and `Realloc` are syscall wrappers around a TLSF allocator:
-- O(1) allocation and free  
-- Low fragmentation  
-- Suitable for real‑time systems  
-
-### 📁 **Minimal Virtual File System (VFS)**
-MicroRTOS includes a small prefix‑based VFS dispatch layer:
-- Drivers register via `VFS_RegisterDriver()`  
-- Paths are routed by prefix (e.g., `/sd/...`, `/flash/...`)  
-- Prefix is stripped before calling the driver  
-- Sparse FD mapping (`user_fd → driver_fd`)  
-- No caching, metadata, or POSIX semantics  
-
-Driver API includes:
-- `FS_Open`  
-- `FS_Close`  
-- `FS_Read`  
-- `FS_Write`  
-- `FS_List`  
-
-### 🔌 **Hardware Abstraction Helpers**
-Convenience constructors for STM32 HAL peripherals:
-- `GPIO_NEW`  
-- `UART_NEW`  
-- `I2C_NEW`  
-- `SPI_NEW`  
-
-RTOS‑safe I/O wrappers using SVC:
-- `SPI_Transmit`, `SPI_Receive`, `SPI_TransmitReceive`  
-- `UART_Transmit`, `UART_Receive`  
-- GPIO read/write helpers  
-
-### ⏲️ **System Tick**
-- Millisecond tick  
-- `OS_GetTick()` syscall for unprivileged threads  
+License
+- Check the `LICENSE` file in the project root for license terms.
 
 ---
-
-## 🚧 Current Status
-
-MicroRTOS is under active development.  
-It may contain bugs, incomplete features, or unstable behavior and may not compile.  
-The API is subject to change as the kernel evolves. but it is unlikey that old api functions are changed.
