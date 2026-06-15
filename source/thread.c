@@ -151,7 +151,7 @@ void Thread_Exit(status_t code)
 API_FUNCTION(Create_Thread)
 void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
                    uint32_t *stack, uint32_t stackBytes,
-                   priority_t priority, char name[5])
+                   priority_t priority, char name[8])
 {
     _ThreadPartialArgs extra;
     extra.stack = stack;
