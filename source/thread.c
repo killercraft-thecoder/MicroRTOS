@@ -207,12 +207,19 @@ static void Init_SysTick(void)
     SystemCoreClockUpdate();
 
     // Configure SysTick to interrupt at TICK_HZ
+    if (SysTick_Config(SystemCoreClock / TICK_HZ))
+    {
+        // Reload value too large for SysTick
+        while (1)
+        {              /* error */
+            __BKPT(10) // Error Code 10 (Unable to boot.)
         }
     }
 
     uint32_t lowest = (1UL << __NVIC_PRIO_BITS) - 1UL;
     NVIC_SetPriority(PendSV_IRQn, lowest);
     NVIC_SetPriority(SysTick_IRQn, lowest - 1U);
+    NVIC_SetPriority(SVCall_IRQn, lowest - 2U);
 }
 
 // Start the scheduler: set current thread and pend PendSV to start via handler
