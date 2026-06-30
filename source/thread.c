@@ -18,11 +18,43 @@
 static const uint32_t INITIAL_XPSR = 0x01000000UL;
 
 // -----------------------------------------------------------------------------
+// Atomic section helpers for critical kernel updates
+// Use these macros to protect short critical regions that update global
+// kernel metadata (counts, bitmasks, lists). They disable interrupts and
+// restore the previous PRIMASK on exit. TODO: Consider nesting support.
+#ifndef ATOMIC_SECTION_BEGIN
+#define ATOMIC_SECTION_BEGIN() do { uint32_t __prim = __get_PRIMASK(); __disable_irq();
+#define ATOMIC_SECTION_END()   if (!__prim) __enable_irq(); } while (0)
+#endif
+
+// TODOs (high priority):
+// - Add per-thread capability/capability-bitfield in `Thread` to restrict which
+//   SVC calls unprivileged threads may invoke (prevent privilege escalation).
+// - Add lightweight resource reservation fields to `Thread` (reserved bytes,
+//   small kernel quotas) and a revocation watchdog to revoke after 5 minutes
+//   of inactivity. Track access timestamps and revoke on timeout.
+// - Add FPU save/restore (FPCA) handling in Save_Context/Restore_Context.
+// - Add comprehensive pointer/range validation for stack buffers passed to
+//   thread creation and all user-provided buffers used in HAL/syscall paths.
+
+// Helper: check whether a thread has a capability bit set
+static inline int Thread_HasCap(Thread *t, uint32_t cap)
+{
+    return (t && ((t->capabilities & cap) != 0));
+}
+
+// -----------------------------------------------------------------------------
 // Internal: Build initial stack frame for a new thread (PSP-based, unprivileged)
 // -----------------------------------------------------------------------------
 static void Init_Thread_Stack(Thread *t, void (*entry)(void *), void *arg)
 {
     uint32_t *stackTop = (uint32_t *)(((uintptr_t)t->stackBase + t->stackSize) & ~0x7);
+
+    // TODO: validate the `t->stackBase` and `t->stackSize` values here to
+    // ensure (uintptr_t)t->stackBase + t->stackSize does not overflow and the
+    // range belongs to user-provided stack memory. Malicious user-provided
+    // stack values can cause the kernel to write out-of-bounds when building
+    // the initial stack frame.
 
     // Hardware-stacked frame: R0-R3, R12, LR, PC, xPSR
     stackTop -= 8;
@@ -87,9 +119,19 @@ static inline void Save_Context(Thread *t)
     t->control = __get_CONTROL();
 
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
-    // If lazily stacking FP context, also capture FP state when active.
-    // Optionally detect FPCA bit in CONTROL before touching FP regs.
-    // t->fpscr = __get_FPSCR(); // GET FPSCR
+    // If the thread uses the FPU (usesFPU) or the FP context active bit is
+    // set in CONTROL, save a minimal FP context (s0-s15 + FPSCR) into the
+    // thread's TCB. This avoids depending on lazy stacking to preserve
+    // FP registers across context switches.
+    if (t->usesFPU || (t->control & 0x04)) // CONTROL.FPCA == bit 2
+    {
+        /* Save S0-S15 into t->fpu_regs[0..15]. We intentionally save a
+           limited subset (S0-S15) because the hardware lazy stacking for
+           exceptions typically covers these registers; this reduces overhead
+           compared to saving all 32 single-precision regs. */
+        __asm volatile("vstmia %0, {s0-s15}" : : "r"(&t->fpu_regs[0]) : "memory");
+        t->fpscr = __get_FPSCR();
+    }
 #endif
 }
 
@@ -101,8 +143,13 @@ static inline void Restore_Context(Thread *t)
     __set_FAULTMASK(t->faultmask);
 
 #if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1)
-    // Restore FP state here if it save's it (and FPCA is set for the thread)
-    // __set_FPSCR(t->fpscr);
+    // Restore FP state here if it was saved in the TCB. Match the save above
+    // by restoring S0-S15 and FPSCR when this thread had floating-point use.
+    if (t->usesFPU || (t->control & 0x04))
+    {
+        __asm volatile("vldmia %0, {s0-s15}" : : "r"(&t->fpu_regs[0]) : "memory");
+        __set_FPSCR(t->fpscr);
+    }
 #endif
 
     // Restore R4–R11 and PSP
@@ -155,7 +202,12 @@ void Create_Thread(Thread *t, void (*entry)(void *), void *arg,
 {
     _ThreadPartialArgs extra;
     extra.stack = stack;
+    // TODO: thread name handling is inconsistent (char[5] vs char[8]).
+    // Use a canonical size and ensure NUL-termination here to avoid
+    // non-terminated strings or buffer overruns when copying names from
+    // user code into kernel structures.
     strncpy(extra.name, name, 5);
+    extra.name[4] = '\0';
 
     register Thread *r0 __asm__("r0") = t;
     register void (*r1)(void *) __asm__("r1") = entry;
@@ -183,11 +235,15 @@ void Mutex_Lock(Mutex *m)
 API_FUNCTION(Mutex_Unlock)
 void Mutex_Unlock(Mutex *m)
 {
-    register char(*r0) __asm__("r0") = &name;
-    register int __asm__("r1") = id;
-    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_READ_FROM_THREAD) : "memory");
+    register Mutex *r0 __asm__("r0") = m;
+    __asm volatile("svc %[imm]" ::"r"(r0), [imm] "I"(SVC_MUTEX_UNLOCK) : "memory");
 }
 API_FUNCTION(Get_Semaphore)
+Get_Mutex_Result Get_Semaphore(char name[5], int id)
+{
+    return Kernal_Get_Mutex(name, id);
+}
+
 API_FUNCTION(Semaphore_Signal)
 void Semaphore_Signal(Semaphore_T *s)
 {
@@ -308,7 +364,7 @@ Thread *Scheduler_GetNextThread(void)
 
 void Scheduler_Tick(void)
 {
-    uint32_t g_kernel->ticks = g_kernel.systemTicks++; // increment global tick counter
+    g_kernel.systemTicks++; // increment global tick counter
 
     for (uint8_t i = 0; i < g_kernel.threadCount; i++)
     {
@@ -317,17 +373,17 @@ void Scheduler_Tick(void)
         // Periodic releases (BLOCKED + period)
         if (t->state == THREAD_BLOCKED && t->periodTicks > 0)
         {
-            if (g_kernel->systemTicks >= t->nextReleaseTick)
+            if (g_kernel.systemTicks >= t->nextReleaseTick)
             {
                 t->state = THREAD_READY;
-                t->nextReleaseTick = g_kernel->ticks + t->periodTicks;
+                t->nextReleaseTick = g_kernel.systemTicks + t->periodTicks;
             }
         }
 
         // Sleep wakeups
         if (t->state == THREAD_SLEEPING)
         {
-            if ((int32_t)(g_kernel->systemTicks - t->nextReleaseTick) >= 0)
+            if ((int32_t)(g_kernel.systemTicks - t->nextReleaseTick) >= 0)
             {
                 t->state = THREAD_READY;
             }
@@ -336,10 +392,10 @@ void Scheduler_Tick(void)
         // Semaphore waiting wakeups
         if (t->state == THREAD_BLOCKED_SEMAPHORE)
         {
-            if (g_kernel->semaphoreList[t->semaphoreIndex].value > 0)
+            if (g_kernel.semaphoreList[t->semaphoreIndex].value > 0)
             {
                 t->state = THREAD_READY;
-                g_kernel->semaphoreList[t->semaphoreIndex].value--;
+                g_kernel.semaphoreList[t->semaphoreIndex].value--;
                 t->semaphoreIndex = 0;
             }
         }
@@ -356,7 +412,26 @@ void Scheduler_Tick(void)
         }
 
         // Queue send wakeups
-        if (t->state == THREAD_BLOCKED_QUEUE_SEND)
+        if (t->state == THREAD_BLOCKED_Queue_Send)
+        {
+            MessageQueue *q = &g_kernel.queueList[t->queueIndex];
+            if (q->count < q->capacity)
+            {
+                t->state = THREAD_READY;
+                t->queueIndex = 0;
+            }
+        }
+        {
+            MessageQueue *q = &g_kernel.queueList[t->queueIndex];
+            if (q->count > 0)
+            {
+                t->state = THREAD_READY;
+                t->queueIndex = 0;
+            }
+        }
+
+        // Queue send wakeups
+        if (t->state == THREAD_BLOCKED_Queue_Send)
         {
             MessageQueue *q = &g_kernel.queueList[t->queueIndex];
             if (q->count < q->capacity)
@@ -524,7 +599,12 @@ void Kernal_Create_Thread(Thread *t, void (*entry)(void *), void *arg,
 
     Init_Thread_Stack(t, entry, arg);
 
-    g_kernel.threadList[g_kernel.threadCount++] = t;
+    // TODO: validate `stack` pointer and `stackBytes` range here to avoid
+    // stackTop overflow/underflow or maliciously crafted user stacks.
+    ATOMIC_SECTION_BEGIN();
+    g_kernel.threadList[g_kernel.threadCount] = t;
+    g_kernel.threadCount++;
+    ATOMIC_SECTION_END();
 }
 
 static void enable_uart_clock(USART_TypeDef *i)
@@ -784,9 +864,17 @@ Mutex *Kernal_Create_Mutex(Thread *maker)
 
     Mutex *m = &g_kernel.mutexes[g_kernel.mutexCount++];
 
+    ATOMIC_SECTION_BEGIN();
+    Mutex *m = &g_kernel.mutexes[g_kernel.mutexCount];
+    g_kernel.mutexCount++;
+    ATOMIC_SECTION_END();
+
     m->locked = false;
     m->owner = NULL;
 
+    // TODO: consider protecting maker->ownedMutexes with atomic section or
+    // per-thread lock if multiple threads can manipulate another thread's
+    // bookkeeping concurrently.
     if (maker->ownedCount < 4)
     {
         maker->ownedMutexes[maker->ownedCount++] = m;
@@ -835,6 +923,15 @@ void Kernal_Free(void *ptr)
     if (!ptr)
     {
         debug_printf("[KERNEL] Free(NULL) ignored\n");
+        return;
+    }
+
+    // Prevent freeing non-heap pointers coming from user code which could
+    // corrupt TLSF metadata. TODO: strengthen to check alignment/allocator
+    // metadata if TLSF provides an API for validation.
+    if (!Kernal_IsValidPointer(ptr))
+    {
+        debug_printf("[KERNEL] Free(invalid) ignored: %p\n", ptr);
         return;
     }
 
@@ -888,12 +985,14 @@ void *Kernal_Realloc(void *ptr, size_t newSize)
 
 static inline Thread *findThreadByName(const char *target)
 {
-    for (int i = 0; i < MAX_THREADS; i++)
+    // Only iterate active threads to avoid reading uninitialized entries.
+    for (int i = 0; i < (int)g_kernel.threadCount && i < MAX_THREADS; i++)
     {
-        // Compare up to 5 chars (since name is char[5])
+        // TODO: thread name length is inconsistent across code (5 vs 8).
+        // Ensure `Thread::name` has a single canonical size and is NUL-terminated.
         if (strncmp(g_kernel.threadList[i].name, target, 5) == 0)
         {
-            return &threadList[i]; // Found
+            return &g_kernel.threadList[i]; // Found
         }
     }
     return NULL; // Not found
@@ -908,7 +1007,10 @@ Get_Mutex_Result Kernal_Get_Mutex(char name[5], int id)
         Mutex *m = t->ownedMutexes[id];
         if (m != NULL)
         {
-            return (Get_Mutex_Result)m->locked; // this only works as long as Get_Mutex_Result enum has UNLOCKED=0 and LOCKED=1 otherwise needs diffrent approch
+            // TODO: map `m->locked` explicitly to `Get_Mutex_Result` values
+            // instead of casting a bool to the enum; enum values may change
+            // and casting is brittle.
+            return (Get_Mutex_Result)m->locked;
         }
     }
     return FAIL; // thread not found, invalid id, or no mutex
@@ -921,11 +1023,14 @@ static inline int Semaphore_Alloc(uint32_t *bitmap)
     for (int i = 0; i < MAX_SEMAPHORES; i++)
     {
         uint32_t mask = (1u << i);
+        ATOMIC_SECTION_BEGIN();
         if ((*bitmap & mask) == 0)
         {
             *bitmap |= mask; // mark as used
+            ATOMIC_SECTION_END();
             return i;
         }
+        ATOMIC_SECTION_END();
     }
     return -1; // no free semaphore
 }
@@ -936,7 +1041,9 @@ static inline void Semaphore_Release(uint32_t *bitmap, int id)
 {
     if (id >= 0 && id < MAX_SEMAPHORES)
     {
+        ATOMIC_SECTION_BEGIN();
         *bitmap &= ~(1u << id); // mark as free
+        ATOMIC_SECTION_END();
     }
 }
 
@@ -954,20 +1061,29 @@ void Semaphore_Free(Semaphore_T *s)
 KERNAL_FUNCTION
 void Semaphore_Signal(Semaphore_T *s)
 {
+    // Increment semaphore value atomically to avoid races.
+    ATOMIC_SECTION_BEGIN();
     g_kernel.semaphoreList[s.index].value++;
+    ATOMIC_SECTION_END();
 }
 KERNAL_FUNCTION
 void Semaphore_Wait(Semaphore_T *s)
 {
+    // Try to grab semaphore atomically
+    ATOMIC_SECTION_BEGIN();
     if (g_kernel.semaphoreList[s.index].value > 0)
     {
         g_kernel.semaphoreList[s.index].value--;
+        ATOMIC_SECTION_END();
+        return;
     }
-    else
-    {
-        g_kernel.currentThread.state = THREAD_BLOCKED_SEMAPHORE;
-        g_kernel.currentThread.semaphoreIndex = s.index;
-    }
+    ATOMIC_SECTION_END();
+
+    // Block current thread on semaphore (update state atomically)
+    ATOMIC_SECTION_BEGIN();
+    g_kernel.currentThread.state = THREAD_BLOCKED_SEMAPHORE;
+    g_kernel.currentThread.semaphoreIndex = s.index;
+    ATOMIC_SECTION_END();
 }
 
 KERNAL_FUNCTION
@@ -994,6 +1110,9 @@ void Kernel_Queue_Send(MessageQueue *q, const void *msg)
     // Fast path: space available
     if (q->count < q->capacity)
     {
+        // TODO: validate that (q->tail * q->msgSize) cannot overflow and that
+        // dst..dst+q->msgSize lies within the queue buffer bounds to avoid
+        // OOB writes from malicious msgSize/capacity values.
         uint8_t *dst = q->buffer + (q->tail * q->msgSize);
         memcpy(dst, msg, q->msgSize);
 
@@ -1020,7 +1139,7 @@ void Kernel_Queue_Send(MessageQueue *q, const void *msg)
     }
 
     t->queueIndex = idx;
-    t->state = THREAD_BLOCKED_QUEUE_SEND;
+    t->state = THREAD_BLOCKED_QUEUE_Send;
 
     // Trigger context switch
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
@@ -1032,6 +1151,7 @@ void Kernel_Queue_Receive(MessageQueue *q, void *msgOut)
     // Fast path: data available
     if (q->count > 0)
     {
+        // TODO: validate multiplication and range as above before copying.
         uint8_t *src = q->buffer + (q->head * q->msgSize);
         memcpy(msgOut, src, q->msgSize);
 
@@ -1069,6 +1189,7 @@ QueueStatus Kernel_Queue_TrySend(MessageQueue *q, const void *msg)
     if (q->count >= q->capacity)
         return QUEUE_FULL;
 
+    // TODO: validate multiplication and range before copying.
     uint8_t *dst = q->buffer + (q->tail * q->msgSize);
     memcpy(dst, msg, q->msgSize);
 
@@ -1084,6 +1205,7 @@ QueueStatus Kernel_Queue_TryReceive(MessageQueue *q, void *msgOut)
     if (q->count == 0)
         return QUEUE_EMPTY;
 
+    // TODO: validate multiplication and range before copying.
     uint8_t *src = q->buffer + (q->head * q->msgSize);
     memcpy(msgOut, src, q->msgSize);
 
@@ -1263,6 +1385,12 @@ int Kernal_FS_List(const char *path, char *outBuffer, int maxLen)
 // Extract SVC immediate from the SVC instruction at (PC - 2)
 static inline uint8_t read_svc_number(uint32_t stacked_pc)
 {
+    // Validate the address before dereferencing. If the stacked PC is not a
+    // valid pointer (or the preceding halfword is not readable), return an
+    // invalid svc number so the caller can safely ignore it.
+    if (!Kernal_IsValidPointer((const void *)(stacked_pc - 2U)))
+        return 0xFFU;
+
     uint16_t *svc_instr = (uint16_t *)(stacked_pc - 2U);
     return (uint8_t)(*svc_instr & 0xFFU);
 }
@@ -1291,6 +1419,7 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 {
     uint32_t stacked_pc = frame[6];
     uint8_t svc_no = read_svc_number(stacked_pc);
+    Thread *caller = g_kernel.currentThread;
 
     switch (svc_no)
     {
@@ -1340,11 +1469,21 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         Kernal_Thread_Exit(frame[0]);
         break;
     case SVC_GPIO_WRITE:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidPointer((const void *)frame[0]))
             break;
         Kernel_GPIO_Write((GPIO_TypeDef *)frame[0], (uint16_t)frame[1], (GPIO_PinStnate)frame[2]);
         break;
     case SVC_GPIO_READ:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidPointer((const void *)frame[0]))
         {
             frame[0] = (uint32_t)-1;
@@ -1354,6 +1493,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         break;
 
     case SVC_UART_TRANSMIT:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(UART_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1362,6 +1506,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = (uint32_t)Kernel_UART_Transmit((UART_Args *)frame[0]);
         break;
     case SVC_UART_RECEIVE:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(UART_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1371,6 +1520,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         break;
 
     case SVC_I2C_MASTER_TXRX:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(I2C_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1382,6 +1536,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = Kernel_GetTick();
         break;
     case SVC_SPI_TRANSMIT:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1390,6 +1549,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = (uint32_t)Kernel_SPI_Transmit((SPI_Args *)frame[0]);
         break;
     case SVC_SPI_RECEIVE:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1398,6 +1562,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
         frame[0] = (uint32_t)Kernel_SPI_Receive((SPI_Args *)frame[0]);
         break;
     case SVC_SPI_TRANSMITRECV:
+        if (!Thread_HasCap(caller, CAP_IO))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         if (!Kernal_IsValidRange((void *)frame[0], sizeof(SPI_Args)))
         {
             frame[0] = (uint32_t)-1;
@@ -1409,6 +1578,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     {
         const GPIO_NewArgs *a = (const GPIO_NewArgs *)frame[0];
         if (!Kernal_IsValidRange(a, sizeof(GPIO_NewArgs)))
+        {
+            set_return_r0(frame, (uint32_t)-1);
+            break;
+        }
+        if (!Thread_HasCap(caller, CAP_IO))
         {
             set_return_r0(frame, (uint32_t)-1);
             break;
@@ -1615,6 +1789,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
     }
     case SVC_MALLOC:
     {
+        if (!Thread_HasCap(caller, CAP_MEM_MANAGE))
+        {
+            frame[0] = (uint32_t)0;
+            break;
+        }
         size_t size = (size_t)frame[0]; // r0
         void *ptr = Kernal_Malloc(size);
         frame[0] = (uint32_t)ptr; // return in r0
@@ -1623,6 +1802,10 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FREE:
     {
+        if (!Thread_HasCap(caller, CAP_MEM_MANAGE))
+        {
+            break;
+        }
         void *ptr = (void *)frame[0]; // r0
         Kernal_Free(ptr);
         // no return value
@@ -1631,6 +1814,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_CALLOC:
     {
+        if (!Thread_HasCap(caller, CAP_MEM_MANAGE))
+        {
+            frame[0] = (uint32_t)0;
+            break;
+        }
         size_t n = (size_t)frame[0];    // r0
         size_t size = (size_t)frame[1]; // r1
         void *ptr = Kernal_Calloc(n, size);
@@ -1640,6 +1828,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_REALLOC:
     {
+        if (!Thread_HasCap(caller, CAP_MEM_MANAGE))
+        {
+            frame[0] = (uint32_t)0;
+            break;
+        }
         void *old = (void *)frame[0];   // r0
         size_t size = (size_t)frame[1]; // r1
         void *ptr = Kernal_Realloc(old, size);
@@ -1649,6 +1842,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FS_OPEN:
     {
+        if (!Thread_HasCap(caller, CAP_FILESYSTEM))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         const char *path = (const char *)frame[0]; // r0
         int flags = (int)frame[1];                 // r1
 
@@ -1659,6 +1857,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FS_CLOSE:
     {
+        if (!Thread_HasCap(caller, CAP_FILESYSTEM))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         int fd = (int)frame[0]; // r0
 
         int result = Kernal_FS_Close(fd);
@@ -1668,6 +1871,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FS_READ:
     {
+        if (!Thread_HasCap(caller, CAP_FILESYSTEM))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         int fd = (int)frame[0];          // r0
         void *buffer = (void *)frame[1]; // r1
         int size = (int)frame[2];        // r2
@@ -1683,6 +1891,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FS_WRITE:
     {
+        if (!Thread_HasCap(caller, CAP_FILESYSTEM))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         int fd = (int)frame[0];                      // r0
         const void *buffer = (const void *)frame[1]; // r1
         int size = (int)frame[2];                    // r2
@@ -1698,6 +1911,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_FS_LIST:
     {
+        if (!Thread_HasCap(caller, CAP_FILESYSTEM))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         const char *path = (const char *)frame[0]; // r0
         char *outBuffer = (char *)frame[1];        // r1
         int maxLen = (int)frame[2];                // r2
@@ -1719,6 +1937,11 @@ void SVC_Handler_C(uint32_t *frame, uint32_t lr)
 
     case SVC_VFS_REGISTER_DRIVER:
     {
+        if (!Thread_HasCap(caller, CAP_ADMIN))
+        {
+            frame[0] = (uint32_t)-1;
+            break;
+        }
         FileSystemDriver *drv = (FileSystemDriver *)frame[0]; // r0
         int result = Kernal_VFS_RegisterDriver(drv);
         frame[0] = (uint32_t)result;
@@ -1757,104 +1980,7 @@ static void Kernel_Thread_Sleep(uint32_t ms)
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
-// GPIO
-API_FUNCTION(GPIO_WritePin)
-void GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
-{
-    register GPIO_TypeDef *r0 __asm__("r0") = port;
-    register uint32_t r1 __asm__("r1") = pin;
-    register uint32_t r2 __asm__("r2") = state;
-    __asm volatile("svc %[imm]" ::[imm] "I"(SVC_GPIO_WRITE), "r"(r0), "r"(r1), "r"(r2) : "memory");
-}
-API_FUNCTION(GPIO_ReadPin)
-GPIO_PinState GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
-{
-    register GPIO_TypeDef *r0 __asm__("r0") = port;
-    register uint32_t r1 __asm__("r1") = pin;
-    register uint32_t ret __asm__("r0");
-    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_GPIO_READ), "r"(r0), "r"(r1) : "memory");
-    return (GPIO_PinState)ret;
-}
-API_FUNCTION(UART_TRANSMIT)
-HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
-{
-    UART_Args args = {huart, pData, Size, Timeout};
-    register UART_Args *r0 __asm__("r0") = &args;
-    register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_UART_TRANSMIT), "r"(r0) : "memory");
-    return ret;
-}
-API_FUNCTION(UART_Receive)
-HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
-{
-                                             uint8_t *pTxData, uint16_t TxSize,
-                                             uint8_t *pRxData, uint16_t RxSize,
-                                             uint32_t Timeout)
-{
-    I2C_Args args = {hi2c, DevAddress, pTxData, TxSize, pRxData, RxSize, Timeout};
-    register I2C_Args *r0 __asm__("r0") = &args;
-    register HAL_StatusTypeDef ret __asm__("r0");
-    __asm volatile("svc %[imm]\n" : "=r"(ret) : [imm] "I"(SVC_I2C_MASTER_TXRX), "r"(r0) : "memory");
-    return ret;
-        .capacity = capacity};
-
-    register Queue_CreateArgs *r0 __asm__("r0") = &args;
-    __asm volatile("svc %0" ::"i"(SVC_QUEUE_CREATE), "r"(r0) : "memory");
-}
-API_FUNCTION(Queue_Send)
-void Queue_Send(MessageQueue *q, const void *msg)
-{
-    register void *r1 __asm__("r1") = msgOut;
-
-    __asm volatile("svc %0" ::"i"(SVC_QUEUE_RECEIVE), "r"(r0), "r"(r1) : "memory");
-}
-API_FUNCTION(Queue_TrySend)
-QueueStatus Queue_TrySend(MessageQueue *q, const void *msg)
-{
-    register MessageQueue *r0 __asm__("r0") = q;
-    register const void *r1 __asm__("r1") = msg;
-{
-    register MessageQueue *r0 __asm__("r0") = q;
-    register void *r1 __asm__("r1") = msgOut;
-
-    __asm volatile("svc %0" ::"i"(SVC_QUEUE_TRY_RECEIVE), "r"(r0), "r"(r1) : "memory");
-
-    QueueStatus result;
-    __asm volatile("mov %0, r0" : "=r"(result));
-    return result;
-}
-API_FUNCTION(Timer_Create)
-uint8_t Timer_Create(uint32_t ms)
-{
-    register uint32_t r0 __asm__("r0") = ms;
-
-    __asm volatile("svc %0" ::"i"(SVC_TIMER_CREATE), "r"(r0) : "memory");
-
-    uint8_t id;
-    __asm volatile("mov %0, r0" : "=r"(id));
-    return id;
-}
-bool Timer_Reset(uint8_t timerId, uint32_t ms)
-{
-    register uint32_t r0 __asm__("r0") = timerId;
-    register uint32_t r1 __asm__("r1") = ms;
-
-    __asm volatile("svc %0" ::"i"(SVC_TIMER_RESET), "r"(r0), "r"(r1) : "memory");
-
-    bool result;
-    __asm volatile("mov %0, r0" : "=r"(result));
-    return result;
-}
-
-API_FUNCTION(Timer_Cancel)
-    return result;
-}
-
-API_FUNCTION(Timer_Remaining)
-uint32_t Timer_Remaining(uint8_t timerId)
-{
-    register uint32_t r0 __asm__("r0") = timerId;
-
+API_FUNCTION(Malloc)
 void *Malloc(size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)size;
@@ -1863,6 +1989,18 @@ void *Malloc(size_t size)
 
     void *ptr;
     __asm volatile("mov %0, r0" : "=r"(ptr));
+    return ptr;
+}
+
+API_FUNCTION(Free)
+void Free(void *ptr)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
+
+    __asm volatile("svc %0" ::"i"(SVC_FREE), "r"(r0) : "memory");
+}
+
+API_FUNCTION(Calloc)
 void *Calloc(size_t n, size_t size)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)n;
@@ -1873,6 +2011,19 @@ void *Calloc(size_t n, size_t size)
     void *ptr;
     __asm volatile("mov %0, r0" : "=r"(ptr));
     return ptr;
+}
+
+API_FUNCTION(Realloc)
+void *Realloc(void *ptr, size_t newSize)
+{
+    register uint32_t r0 __asm__("r0") = (uint32_t)ptr;
+    register uint32_t r1 __asm__("r1") = (uint32_t)newSize;
+
+    __asm volatile("svc %0" ::"i"(SVC_REALLOC), "r"(r0), "r"(r1) : "memory");
+
+    void *newPtr;
+    __asm volatile("mov %0, r0" : "=r"(newPtr));
+    return newPtr;
 }
 
 
@@ -1922,15 +2073,50 @@ int VFS_RegisterDriver(FileSystemDriver *driver)
 }
 
 // Validate that a contiguous range [ptr, ptr+len) is within a valid region.
-    if (!Kernal_IsValidPointer((const void *)start))
-        return false;
-    if (!Kernal_IsValidPointer((const void *)end))
+static inline bool Kernal_IsValidRange(const void *ptr, size_t len)
+{
+    if (!ptr)
         return false;
 
-    // Simple sanity: ensure no wrap-around
+    if (len == 0)
+        return true;
+
+    uintptr_t start = (uintptr_t)ptr;
+    uintptr_t end = start + (uintptr_t)len;
+
+    // overflow check
     if (end < start)
         return false;
 
-    return true;
+    uintptr_t text_start = (uintptr_t)&__kernel_text_start__;
+    uintptr_t text_end = (uintptr_t)&__kernel_text_end__;
+    uintptr_t api_start = (uintptr_t)&__api_table_start__;
+    uintptr_t api_end = (uintptr_t)&__api_table_end__;
+    uintptr_t heap_start = (uintptr_t)&__heap_start__;
+    uintptr_t heap_end = (uintptr_t)&__heap_end__;
+    uintptr_t stack_start = (uintptr_t)&__stack_start__;
+    uintptr_t stack_end = (uintptr_t)&__stack_end__;
+
+    // Check if fully contained in text, api, or heap ranges
+    if (start >= text_start && end <= text_end)
+        return true;
+    if (start >= api_start && end <= api_end)
+        return true;
+    if (start >= heap_start && end <= heap_end)
+        return true;
+
+    // Stack may grow up or down depending on linker script. Accept either.
+    if (stack_start < stack_end)
+    {
+        if (start >= stack_start && end <= stack_end)
+            return true;
+    }
+    else
+    {
+        if (start >= stack_end && end <= stack_start)
+            return true;
+    }
+
+    return false;
 }
 

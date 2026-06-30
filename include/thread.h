@@ -271,6 +271,15 @@ typedef enum : uint32_t
     FAIL = 2
 } Get_Mutex_Result;
 
+// Per-thread capability bits. Assign these conservatively; threads without a
+// capability may not perform the corresponding syscall that manipulates
+// hardware or critical kernel resources.
+#define CAP_IO          (1u << 0) // GPIO/UART/I2C/SPI access
+#define CAP_FILESYSTEM  (1u << 1) // FS read/write/list, VFS driver registration
+#define CAP_MEM_MANAGE  (1u << 2) // Malloc/Free/Reloc
+#define CAP_ADMIN       (1u << 3) // privileged admin operations
+
+
 typedef struct
 {
     bool locked;
@@ -398,6 +407,13 @@ typedef struct
     char name[8];             // Thread Name
     int semaphoreIndex;       // Index of Semaphore this thread is Waiting On
     uint8_t queueIndex;       // index into queueList[]
+    uint32_t capabilities;    // per-thread capability bitmask (see CAP_* below)
+
+    // Floating-point context (single-precision S0..S31 saved as 32-bit words)
+    // Only valid when `usesFPU` is non-zero.
+    uint32_t fpu_regs[32];
+    uint32_t fpscr;
+
     SoftTimer timers[MAX_TIMERS_PER_THREAD];
 } Thread;
 
